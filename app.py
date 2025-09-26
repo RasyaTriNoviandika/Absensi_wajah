@@ -636,4 +636,5 @@ def admin_settings():
 if __name__ == "__main__":
     buat_tabel()
     buat_admin_default()  # Buat admin default
-    app.run(debug=False)  # Ubah ke False untuk production
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=False)
