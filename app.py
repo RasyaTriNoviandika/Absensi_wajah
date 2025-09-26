@@ -13,6 +13,7 @@ from reportlab.lib.styles import ParagraphStyle
 from werkzeug.security import generate_password_hash, check_password_hash
 import ast
 import secrets
+import os
 
 app = Flask(__name__)
 
@@ -634,7 +635,5 @@ def admin_settings():
 
 # ---------------- Main ----------------
 if __name__ == "__main__":
-    buat_tabel()
-    buat_admin_default()  # Buat admin default
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
