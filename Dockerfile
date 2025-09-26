@@ -1,8 +1,8 @@
-FROM python:3.10-slim
+# Gunakan image yang sudah ada dlib & face_recognition
+FROM python:3.9
 
-# Install dependency sistem
+# Install dependencies sistem dasar
 RUN apt-get update && apt-get install -y \
-    build-essential \
     cmake \
     libopenblas-dev \
     liblapack-dev \
@@ -11,15 +11,17 @@ RUN apt-get update && apt-get install -y \
     libboost-all-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
+# Set workdir
 WORKDIR /app
 
-# Copy requirements & install
+# Copy requirements
 COPY requirements.txt .
+
+# Install python packages
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy source code
+# Copy semua kode
 COPY . .
 
-# Jalankan app
+# Jalankan Flask
 CMD ["python", "app.py"]
