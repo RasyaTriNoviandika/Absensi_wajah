@@ -1,28 +1,25 @@
-# Gunakan Python base image
 FROM python:3.10-slim
+
+# Install dependency sistem
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    libopenblas-dev \
+    liblapack-dev \
+    libx11-dev \
+    libgtk-3-dev \
+    libboost-all-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
 
-# Install dependencies system (buat face_recognition & cmake dkk)
-RUN apt-get update && apt-get install -y \
-    build-essential cmake \
-    python3-dev \
-    libboost-all-dev \
-    libsm6 libxext6 libxrender-dev \
-    libgl1 libglib2.0-0 \
-    git \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements dan install dependencies Python
+# Copy requirements & install
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy semua file project ke dalam container
+# Copy source code
 COPY . .
 
-# Expose port Flask default (Railway akan override)
-EXPOSE 5000
-
-# Jalankan app.py
+# Jalankan app
 CMD ["python", "app.py"]
