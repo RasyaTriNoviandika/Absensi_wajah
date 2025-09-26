@@ -1,26 +1,16 @@
-FROM python:3.10-slim
+FROM python:3.11-slim
 
-# Install dependency sistem buat build dlib & face_recognition
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    cmake \
-    libopenblas-dev \
-    liblapack-dev \
-    libx11-dev \
-    libgtk-3-dev \
-    libboost-all-dev \
-    && rm -rf /var/lib/apt/lists/*
-
+# Set working directory
 WORKDIR /app
 
-# Copy requirements dulu (biar cache build lebih efisien)
+# Copy dependencies file
 COPY requirements.txt .
 
-# Install python packages
+# Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy semua source code
+# Copy all source code
 COPY . .
 
-# Jalankan pakai gunicorn (production server)
-CMD ["gunicorn", "-b", "0.0.0.0:8000", "app:app"]
+# Run app
+CMD ["python", "app.py"]
