@@ -1,8 +1,8 @@
-# Gunakan image yang sudah ada dlib & face_recognition
-FROM python:3.9
+FROM python:3.10-slim
 
-# Install dependencies sistem dasar
+# Install dependency sistem buat build dlib & face_recognition
 RUN apt-get update && apt-get install -y \
+    build-essential \
     cmake \
     libopenblas-dev \
     liblapack-dev \
@@ -11,17 +11,16 @@ RUN apt-get update && apt-get install -y \
     libboost-all-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Set workdir
 WORKDIR /app
 
-# Copy requirements
+# Copy requirements dulu (biar cache build lebih efisien)
 COPY requirements.txt .
 
 # Install python packages
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy semua kode
+# Copy semua source code
 COPY . .
 
-# Jalankan Flask
-CMD ["python", "app.py"]
+# Jalankan pakai gunicorn (production server)
+CMD ["gunicorn", "-b", "0.0.0.0:8000", "app:app"]
