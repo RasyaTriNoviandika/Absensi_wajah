@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daftar Absensi</title>
+<style>
+    /* Reset */
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+        background: #f5f5f5;
+        color: #333;
+        padding: 20px;
+        margin: 0;
+        min-height: 100vh;
+    }
+
+    h2 {
+        text-align: center;
+        margin-bottom: 20px;
+        color: #333;
+        font-weight: 600;
+    }
+
+    .container {
+        max-width: 1100px;
+        margin: 0 auto;
+    }
+
+    a.button {
+        display: inline-block;
+        padding: 12px 24px;
+        margin-bottom: 20px;
+        background: #007bff;
+        color: white;
+        text-decoration: none;
+        border-radius: 5px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    a.button:hover {
+        background: #0056b3;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+    }
+
+    /* Table container */
+    .table-container {
+        background: #fff;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        border: 1px solid #ddd;
+        overflow-x: auto;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 700px;
+    }
+
+    th, td {
+        padding: 14px 12px;
+        border-bottom: 1px solid #ddd;
+        text-align: left;
+    }
+
+    th {
+        background: #007bff;
+        color: white;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    tr:nth-child(even) {
+        background-color: #f8f9fa;
+    }
+
+    tr:hover {
+        background-color: #e9ecef;
+        transition: background 0.3s ease;
+    }
+
+    /* Responsive mobile → card view */
+    @media (max-width: 768px) {
+        table, thead, tbody, th, td, tr {
+            display: block;
+        }
+        thead tr {
+            display: none;
+        }
+        .table-container {
+            padding: 15px;
+            background: #fff;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border: 1px solid #ddd;
+        }
+        tbody {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        tr {
+            margin: 0;
+            background: #fff;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border: 1px solid #ddd;
+            overflow: hidden;
+            transition: transform 0.2s ease;
+        }
+        tr:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+        td {
+            border: none;
+            display: flex;
+            padding: 12px 16px;
+            align-items: center;
+        }
+        td::before {
+            content: attr(data-label);
+            flex: 0 0 110px;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            font-size: 12px;
+        }
+        /* Header warna di tiap card */
+        tr td:first-child {
+            background: #007bff;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            justify-content: center;
+        }
+        tr td:first-child::before {
+            content: "No";
+            color: rgba(255,255,255,0.9);
+            margin-right: 6px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        body {
+            padding: 15px;
+        }
+
+        .container {
+            padding: 0;
+        }
+
+        .table-container {
+            padding: 15px;
+        }
+
+        tr td {
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 10px 12px;
+        }
+
+        td::before {
+            flex: none;
+            margin-bottom: 5px;
+            color: #007bff;
+        }
+    }
+
+    /* Smooth scroll */
+    html {
+        scroll-behavior: smooth;
+    }
+</style>
+</head>
+<body>
+<div class="container">
+    <h2>📋 Daftar Absensi</h2>
+
+    <a href="{{ url_for('potret_user') }}" class="button">📸 Potret & Absen</a>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>No</th>
+                    <th>Nama</th>
+                    <th>Kelas</th>
+                    <th>Jurusan</th>
+                    <th>Status</th>
+                    <th>Waktu</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in absensi %}
+                <tr>
+                    <td data-label="No">{{ loop.index }}</td>
+                    <td data-label="Nama">{{ a[0] }}</td>
+                    <td data-label="Kelas">{{ a[1] }}</td>
+                    <td data-label="Jurusan">{{ a[2] }}</td>
+                    <td data-label="Status">{{ a[3] }}</td>
+                    <td data-label="Waktu">{{ a[4] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>

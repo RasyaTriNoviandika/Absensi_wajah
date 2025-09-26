@@ -1,0 +1,80 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  display: flex;
+  justify-content: center;   /* Tengah horizontal */
+  align-items: center;       /* Tengah vertical */
+  min-height: 100vh;         /* full height */
+  background: #f0f2f5;       /* Warna background lembut */
+  font-family: sans-serif;
+  padding: 10px;             /* biar ga nempel pinggir di HP */
+}
+
+.card {
+  background: #fff;
+  padding: 20px;
+  border-radius: 15px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px; /* jarak antar elemen */
+  width: 100%;
+  max-width: 400px; /* batas lebar maksimal */
+  text-align: center;
+}
+
+.video {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+video, canvas {
+  width: 100%;
+  border-radius: 10px;
+  border: 2px solid #333;
+  max-height: 60vh;  /* biar video ga terlalu panjang di hp */
+  object-fit: cover; /* rapih pas aspect ratio beda */
+}
+
+button {
+    font-family: Arial;
+    font-weight: bold;
+  padding: 12px 24px;
+  font-size: 16px;
+  border: none;
+  border-radius: 10px;
+  background: #0b046e;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s;
+  width: 100%;          /* full width di hp */
+  max-width: 200px;     /* tapi di desktop ga terlalu gede */
+}
+
+button:hover {
+  background: #0056b3;
+}
+
+#loading {
+  display: none;
+  font-size: 14px;
+  color: #555;
+}
+
+/* --- Responsif tambahan untuk layar kecil --- */
+@media (max-width: 480px) {
+  h2 {
+    font-size: 18px;
+  }
+
+  button {
+    font-size: 14px;
+    padding: 10px;
+  }
+}
