@@ -243,7 +243,9 @@ def register_user():
         encodings = face_recognition.face_encodings(img)
         if not encodings:
             os.remove(foto_path)
-            return "Wajah tidak terdeteksi, coba lagi!", 400
+            # Pakai flash message, redirect kembali ke register
+            flash("Wajah tidak terdeteksi, coba lagi dengan foto yang jelas!", "error")
+            return redirect(url_for("register_user"))
 
         encoding = encodings[0].tolist()  # ubah jadi list
 
