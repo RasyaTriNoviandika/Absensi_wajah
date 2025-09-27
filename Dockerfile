@@ -1,6 +1,6 @@
 FROM python:3.11-slim
 
-# Install system dependencies (wajib buat opencv, pillow, numpy, dlib)
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     cmake \
@@ -8,17 +8,16 @@ RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
 WORKDIR /app
 
-# Copy dependencies file
+# Copy requirements
 COPY requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy all source code
+# Copy project
 COPY . .
 
-# Jalankan aplikasi
-CMD ["python", "app.py"]
+# Jalankan app dengan gunicorn
+CMD ["gunicorn", "app:app", "-b", "0.0.0.0:8000"]
