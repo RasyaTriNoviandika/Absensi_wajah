@@ -14,6 +14,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import ast
 import secrets
 import os
+from PIL import Image, ImageOps
+import numpy as np
+
 
 app = Flask(__name__)
 
@@ -238,9 +241,22 @@ def register_user():
         foto_path = os.path.join(FACES_DIR, f"{uuid.uuid4().hex}.jpg")
         file.save(foto_path)
 
+        # 🔹 Perbaiki orientasi & resize foto
+        try:
+            img = Image.open(foto_path)
+            img = ImageOps.exif_transpose(img)
+            if img.width > 800:
+                ratio = 800 / float(img.width)
+                new_height = int(img.height * ratio)
+                img = img.resize((800, new_height))
+            img.save(foto_path)
+        except Exception as e:
+            os.remove(foto_path)
+            return f"Gagal memproses foto: {e}", 400
+
         # Encode wajah
-        img = face_recognition.load_image_file(foto_path)
-        encodings = face_recognition.face_encodings(img)
+        img_array = face_recognition.load_image_file(foto_path)
+        encodings = face_recognition.face_encodings(img_array)
         if not encodings:
             os.remove(foto_path)
             return "Wajah tidak terdeteksi, coba lagi!", 400
@@ -260,19 +276,6 @@ def register_user():
 
     return render_template("user/register.html")
 
-@app.route("/potret")
-def potret_user():
-    """Halaman untuk potret & absen"""
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-    cur.execute("SELECT COUNT(*) FROM siswa")
-    count = cur.fetchone()[0]
-    conn.close()
-
-    if count == 0:
-        return redirect(url_for("register_user"))
-    return render_template("user/potret.html")
-
 @app.route("/absen", methods=["POST"])
 def absen():
     """Proses absensi siswa"""
@@ -283,6 +286,19 @@ def absen():
     filename = f"{uuid.uuid4().hex}.jpg"
     filepath = os.path.join(UPLOAD_DIR, filename)
     file.save(filepath)
+
+    # 🔹 Perbaiki orientasi & resize foto
+    try:
+        img = Image.open(filepath)
+        img = ImageOps.exif_transpose(img)
+        if img.width > 800:
+            ratio = 800 / float(img.width)
+            new_height = int(img.height * ratio)
+            img = img.resize((800, new_height))
+        img.save(filepath)
+    except Exception as e:
+        os.remove(filepath)
+        return jsonify({"success": False, "message": f"Gagal memproses foto: {e}"})
 
     # Ambil area absensi dari DB
     conn = sqlite3.connect(DB_NAME)
