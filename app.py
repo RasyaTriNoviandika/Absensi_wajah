@@ -1,4 +1,4 @@
-# =================== UPDATE app.py ===================
+# =================== UPDATE app.py - PERBAIKAN DUPLIKASI REGISTRASI ===================
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash
 import sqlite3, math, os, uuid, face_recognition
 from datetime import datetime, timedelta
@@ -14,6 +14,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import ast
 import secrets
 import os
+import numpy as np
 
 app = Flask(__name__)
 
@@ -27,17 +28,12 @@ SCHOOL_LAT = -6.260960
 SCHOOL_LNG = 106.959603
 RADIUS = 15  
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-DB_NAME = os.path.join(BASE_DIR, "database.db")
-FACES_DIR = os.path.join(BASE_DIR, "faces")
-UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
+DB_NAME = "database.db"
+FACES_DIR = "faces"
+UPLOAD_DIR = "uploads"
 
 # Buat folder upload jika belum ada
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-os.makedirs(FACES_DIR, exist_ok=True)
-
-print(f"📂 Database path yang dipakai: {DB_NAME}")  # Debug
 
 # ============= FUNGSI KEAMANAN =============
 def login_required(f):
@@ -95,7 +91,7 @@ def buat_tabel():
             kelas TEXT NOT NULL,
             jurusan TEXT NOT NULL,
             foto_path TEXT NOT NULL,
-            encoding BLOB
+            encoding TEXT
         )
     """)
 
@@ -196,7 +192,7 @@ def cari_siswa_dengan_wajah(file_path):
                 continue
                 
             try:
-                encoding_siswa = np.frombuffer(encoding_str, dtype=np.float64)
+                encoding_siswa = ast.literal_eval(encoding_str)
                 print(f"🔄 Membandingkan dengan {nama}...")
                 
                 # Coba beberapa tolerance level
@@ -220,6 +216,61 @@ def cari_siswa_dengan_wajah(file_path):
 
     except Exception as e:
         print(f"❌ Error dalam pencocokan wajah: {e}")
+        return None
+
+# ============= FUNGSI BARU: CEK DUPLIKASI WAJAH SAAT REGISTRASI =============
+def cek_wajah_sudah_terdaftar(file_path):
+    """Cek apakah wajah sudah pernah terdaftar sebelumnya"""
+    try:
+        print(f"🔍 Mengecek duplikasi untuk file: {file_path}")
+        
+        # Load dan deteksi wajah dari foto yang akan didaftarkan
+        img_new = face_recognition.load_image_file(file_path)
+        new_encodings = face_recognition.face_encodings(img_new)
+        
+        if not new_encodings:
+            print("❌ Tidak ada wajah terdeteksi pada foto")
+            return None
+
+        new_face_encoding = new_encodings[0]
+        print(f"✅ Encoding wajah baru berhasil dibuat")
+
+        # Ambil semua siswa yang sudah terdaftar
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+        cur.execute("SELECT id, nama, kelas, jurusan, encoding FROM siswa WHERE encoding IS NOT NULL")
+        siswa_list = cur.fetchall()
+        conn.close()
+
+        print(f"👥 Mengecek terhadap {len(siswa_list)} siswa terdaftar")
+
+        # Bandingkan dengan setiap siswa yang sudah terdaftar
+        for sid, nama, kelas, jurusan, encoding_str in siswa_list:
+            if not encoding_str:
+                continue
+                
+            try:
+                existing_encoding = ast.literal_eval(encoding_str)
+                
+                # Gunakan tolerance ketat untuk deteksi duplikasi
+                result = face_recognition.compare_faces([existing_encoding], new_face_encoding, tolerance=0.5)
+                distance = face_recognition.face_distance([existing_encoding], new_face_encoding)[0]
+                
+                print(f"🔄 Cek duplikasi dengan {nama}: Match={result[0]}, Distance={distance:.3f}")
+                
+                if result[0]:
+                    print(f"⚠️ DUPLIKASI TERDETEKSI! Wajah mirip dengan {nama}")
+                    return {"id": sid, "nama": nama, "kelas": kelas, "jurusan": jurusan}
+                        
+            except Exception as e:
+                print(f"❌ Error parsing encoding untuk {nama}: {e}")
+                continue
+
+        print("✅ Tidak ada duplikasi, wajah baru dapat didaftarkan")
+        return None
+
+    except Exception as e:
+        print(f"❌ Error dalam pengecekan duplikasi: {e}")
         return None
 
 # ============= ROUTES LOGIN ADMIN =============
@@ -278,89 +329,118 @@ def reset_db():
     return redirect(url_for("admin_index"))
 
 # -------- USER (Tidak perlu login) --------
+# ============= PERBAIKAN ROUTE REGISTER_USER - DENGAN VALIDASI DUPLIKASI =============
 @app.route("/register", methods=["GET", "POST"])
 def register_user():
     if request.method == "POST":
         nama = request.form.get("nama")
         kelas = request.form.get("kelas")
         jurusan = request.form.get("jurusan")
-        
+
         if not nama or not kelas or not jurusan:
             flash("Semua field wajib diisi!", "error")
             return redirect(url_for("register_user"))
 
-        # Buat entri siswa dulu (foto_path & encoding kosong sementara)
-        conn = sqlite3.connect(DB_NAME)
-        cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO siswa (nama, kelas, jurusan, foto_path, encoding) VALUES (?, ?, ?, ?, ?)",
-            (nama, kelas, jurusan, "", None)
-        )
-        siswa_id = cur.lastrowid
-        conn.commit()
-        conn.close()
+        # Simpan data ke session untuk digunakan di potret
+        session['temp_nama'] = nama
+        session['temp_kelas'] = kelas
+        session['temp_jurusan'] = jurusan
 
-        flash("Registrasi berhasil! Silakan upload foto wajah.", "success")
-        return redirect(url_for("potret_user", siswa_id=siswa_id))
+        flash("Data berhasil disimpan! Silakan lanjut ambil foto.", "success")
+        return redirect(url_for("potret_user"))
 
     return render_template("user/register.html")
 
-@app.route("/potret/<int:siswa_id>", methods=["GET", "POST"])
-def potret_user(siswa_id):
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-    cur.execute("SELECT id, nama, kelas, jurusan FROM siswa WHERE id=?", (siswa_id,))
-    row = cur.fetchone()
-    conn.close()
-
-    if not row:
-        flash("Siswa tidak ditemukan!", "error")
+# ============= PERBAIKAN ROUTE POTRET_USER - DENGAN VALIDASI DUPLIKASI =============
+@app.route("/potret", methods=["GET", "POST"])
+def potret_user():
+    # Cek apakah ada data temp di session
+    if 'temp_nama' not in session:
+        flash("Data registrasi tidak ditemukan! Silakan isi form registrasi terlebih dahulu.", "error")
         return redirect(url_for("register_user"))
-
-    siswa = {"id": row[0], "nama": row[1], "kelas": row[2], "jurusan": row[3]}
+    
+    # Clear flash messages lama saat GET request
+    if request.method == "GET":
+        session.pop('_flashes', None)
+    
+    siswa = {
+        "nama": session.get('temp_nama'),
+        "kelas": session.get('temp_kelas'),
+        "jurusan": session.get('temp_jurusan')
+    }
 
     if request.method == "POST":
-        file = request.files.get("foto")
+        file = request.files["foto"]
         if not file or file.filename == "":
-            flash("Foto wajib diupload!", "error")
+            flash("Foto harus diupload!", "error")
             return render_template("user/potret.html", siswa=siswa)
 
-        os.makedirs(FACES_DIR, exist_ok=True)
-        foto_path = os.path.join(FACES_DIR, f"{uuid.uuid4().hex}.jpg")
-        file.save(foto_path)
+        # Simpan foto sementara untuk pengecekan
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
+        temp_foto_path = os.path.join(UPLOAD_DIR, f"temp_{uuid.uuid4().hex}.jpg")
+        file.save(temp_foto_path)
 
         try:
-            img = face_recognition.load_image_file(foto_path)
+            # ============= CEK DUPLIKASI WAJAH TERLEBIH DAHULU =============
+            siswa_duplikat = cek_wajah_sudah_terdaftar(temp_foto_path)
+            
+            if siswa_duplikat:
+                # Hapus foto temporary
+                os.remove(temp_foto_path)
+                # Clear session temp
+                session.pop('temp_nama', None)
+                session.pop('temp_kelas', None) 
+                session.pop('temp_jurusan', None)
+                session.pop('_flashes', None)
+                
+                flash(f"⚠️ Wajah Anda sudah terdaftar atas nama '{siswa_duplikat['nama']}' dari kelas {siswa_duplikat['kelas']} {siswa_duplikat['jurusan']}. Tidak dapat mendaftar ulang!", "error")
+                return redirect(url_for("absen_harian"))
+
+            # ============= PROSES ENCODING JIKA TIDAK ADA DUPLIKASI =============
+            img = face_recognition.load_image_file(temp_foto_path)
             encodings = face_recognition.face_encodings(img)
 
             if not encodings:
-                os.remove(foto_path)
-                flash("Wajah tidak terdeteksi, pastikan foto jelas!", "error")
+                os.remove(temp_foto_path)
+                flash("Wajah tidak terdeteksi! Pastikan foto jelas dan menghadap kamera.", "error")
                 return render_template("user/potret.html", siswa=siswa)
 
             if len(encodings) > 1:
-                os.remove(foto_path)
-                flash("Foto hanya boleh berisi 1 wajah!", "error")
+                os.remove(temp_foto_path)
+                flash("Foto berisi lebih dari 1 wajah! Gunakan foto dengan 1 wajah saja.", "error")
                 return render_template("user/potret.html", siswa=siswa)
-            
-            # Simpan encoding ke database
-            encoding = encodings[0]
+
+            encoding = encodings[0].tolist()
+
+            # Pindahkan file ke folder faces dengan nama final
+            os.makedirs(FACES_DIR, exist_ok=True)
+            final_foto_path = os.path.join(FACES_DIR, f"{uuid.uuid4().hex}.jpg")
+            os.rename(temp_foto_path, final_foto_path)
+
+            # Simpan siswa ke database
             conn = sqlite3.connect(DB_NAME)
             cur = conn.cursor()
             cur.execute(
-                "UPDATE siswa SET foto_path=?, encoding=? WHERE id=?",
-                (foto_path, encoding.tobytes(), siswa_id)
+                "INSERT INTO siswa (nama, kelas, jurusan, foto_path, encoding) VALUES (?, ?, ?, ?, ?)",
+                (siswa['nama'], siswa['kelas'], siswa['jurusan'], final_foto_path, str(encoding))
             )
             conn.commit()
             conn.close()
 
-            flash("Wajah berhasil disimpan, sekarang Anda bisa absen.", "success")
-            return redirect(url_for("index"))
+            # Hapus session temporary setelah berhasil
+            session.pop('temp_nama', None)
+            session.pop('temp_kelas', None)
+            session.pop('temp_jurusan', None)
+            session.pop('_flashes', None)
+
+            flash(f"🎉 Registrasi berhasil! {siswa['nama']} sekarang bisa melakukan absensi.", "success")
+            return redirect(url_for("absen_harian"))
 
         except Exception as e:
-            if os.path.exists(foto_path):
-                os.remove(foto_path)
-            flash(f"Error saat memproses foto: {str(e)}", "error")
+            # Hapus file temp jika ada error
+            if os.path.exists(temp_foto_path):
+                os.remove(temp_foto_path)
+            flash(f"Error memproses foto: {str(e)}", "error")
             return render_template("user/potret.html", siswa=siswa)
 
     return render_template("user/potret.html", siswa=siswa)
@@ -444,6 +524,37 @@ def absen():
             os.remove(filepath)
         
         return jsonify({"success": False, "message": f"Terjadi kesalahan: {str(e)}"})
+
+@app.route("/absen_harian")
+def absen_harian():
+    """Halaman absensi harian - cek dulu apakah ada siswa terdaftar"""
+    
+    # Cek apakah ada siswa yang sudah terdaftar dengan encoding
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) FROM siswa WHERE encoding IS NOT NULL")
+    total_siswa_terdaftar = cur.fetchone()[0]
+    conn.close()
+    
+    # Jika belum ada siswa terdaftar, arahkan ke registrasi
+    if total_siswa_terdaftar == 0:
+        flash("Belum ada siswa yang terdaftar! Silakan daftar terlebih dahulu.", "warning")
+        return redirect(url_for("register_user"))
+    
+    return render_template("user/absen_harian.html")
+
+@app.route("/check_students")
+def check_students():
+    """API endpoint untuk mengecek jumlah siswa yang sudah terdaftar"""
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) FROM siswa WHERE encoding IS NOT NULL")
+    total_students = cur.fetchone()[0]
+    conn.close()
+    
+    return jsonify({
+        "total_students": total_students
+    })
 
 @app.route("/absensi")
 def absensi_user():
@@ -532,7 +643,6 @@ def admin_absensi():
 def admin_absen_area():
     return render_template("admin/absen_area.html")
 
-
 @app.route("/admin/register", methods=["GET", "POST"])
 @login_required
 def admin_register():
@@ -542,45 +652,61 @@ def admin_register():
         jurusan = request.form["jurusan"]
         file = request.files["foto"]
 
+        # Validasi file
         if not file or file.filename == '':
             flash("Foto wajah harus diupload!", "error")
             return render_template("admin/register.html")
 
-        os.makedirs(FACES_DIR, exist_ok=True)
-        foto_path = os.path.join(FACES_DIR, f"{uuid.uuid4().hex}.jpg")
-        file.save(foto_path)
+        # Simpan foto sementara untuk pengecekan duplikasi
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
+        temp_foto_path = os.path.join(UPLOAD_DIR, f"admin_temp_{uuid.uuid4().hex}.jpg")
+        file.save(temp_foto_path)
 
         try:
-            img = face_recognition.load_image_file(foto_path)
+            # ============= CEK DUPLIKASI WAJAH TERLEBIH DAHULU (ADMIN JUGA) =============
+            siswa_duplikat = cek_wajah_sudah_terdaftar(temp_foto_path)
+            
+            if siswa_duplikat:
+                os.remove(temp_foto_path)
+                flash(f"⚠️ Wajah sudah terdaftar atas nama '{siswa_duplikat['nama']}' dari kelas {siswa_duplikat['kelas']} {siswa_duplikat['jurusan']}. Tidak dapat mendaftar ulang!", "error")
+                return render_template("admin/register.html")
+
+            # Encode wajah dengan validasi yang lebih ketat
+            img = face_recognition.load_image_file(temp_foto_path)
             encodings = face_recognition.face_encodings(img)
             
             if not encodings:
-                os.remove(foto_path)
-                flash("Wajah tidak terdeteksi pada foto!", "error")
+                os.remove(temp_foto_path)
+                flash("Wajah tidak terdeteksi pada foto! Pastikan foto jelas dan menghadap kamera.", "error")
                 return render_template("admin/register.html")
             
             if len(encodings) > 1:
-                os.remove(foto_path)
-                flash("Gunakan foto dengan 1 wajah saja!", "error")
+                flash("Terdeteksi lebih dari 1 wajah dalam foto! Gunakan foto dengan 1 wajah saja.", "error")
+                os.remove(temp_foto_path)
                 return render_template("admin/register.html")
 
-            encoding = encodings[0]
+            encoding = encodings[0].tolist()
+
+            # Pindahkan file ke folder faces dengan nama final
+            os.makedirs(FACES_DIR, exist_ok=True)
+            final_foto_path = os.path.join(FACES_DIR, f"admin_{uuid.uuid4().hex}.jpg")
+            os.rename(temp_foto_path, final_foto_path)
 
             conn = sqlite3.connect(DB_NAME)
             cur = conn.cursor()
             cur.execute(
                 "INSERT INTO siswa (nama, kelas, jurusan, foto_path, encoding) VALUES (?, ?, ?, ?, ?)",
-                (nama, kelas, jurusan, foto_path, encoding.tobytes())
+                (nama, kelas, jurusan, final_foto_path, str(encoding))
             )
             conn.commit()
             conn.close()
 
-            flash(f"Siswa {nama} berhasil didaftarkan!", "success")
+            flash(f"✅ Siswa {nama} berhasil didaftarkan!", "success")
             return redirect(url_for("admin_register"))
 
         except Exception as e:
-            if os.path.exists(foto_path):
-                os.remove(foto_path)
+            if os.path.exists(temp_foto_path):
+                os.remove(temp_foto_path)
             flash(f"Error saat memproses foto: {str(e)}", "error")
             return render_template("admin/register.html")
 

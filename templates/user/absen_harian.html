@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Absensi Harian</title>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; font-family:'Poppins',sans-serif; }
+    body {
+      background:#f5f5f5; min-height:100vh;
+      display:flex; align-items:center; justify-content:center; padding:20px;
+    }
+    .container {
+      background:#fff; padding:30px; border-radius:10px;
+      box-shadow:0 2px 10px rgba(0,0,0,0.1); text-align:center;
+      width:100%; max-width:450px;
+    }
+    h2 {
+      font-size:24px; margin-bottom:20px;
+      display:flex; align-items:center; justify-content:center; gap:8px;
+    }
+    h2::before { content:"📸"; font-size:28px; }
+    .info-box {
+      background:#e7f3ff; padding:15px; border-radius:6px;
+      margin-bottom:20px; border-left:4px solid #007bff;
+    }
+    .info-box p { color:#333; font-size:14px; margin:0; }
+    video {
+      width:100%; border-radius:6px; margin-bottom:15px;
+      border:2px solid #007bff; max-width:350px;
+    }
+    button {
+      width:100%; padding:14px; border:none;
+      border-radius:6px; font-size:16px; font-weight:600;
+      background:#007bff; color:#fff; cursor:pointer; transition:.3s;
+      margin-bottom:10px;
+    }
+    button:hover:not(:disabled) {
+      background:#0056b3; transform:translateY(-2px);
+      box-shadow:0 4px 12px rgba(0,123,255,0.3);
+    }
+    button:disabled { background:#6c757d; cursor:not-allowed; }
+    .back-link { margin-top:15px; }
+    .back-link a { color:#007bff; text-decoration:none; font-size:14px; }
+    .back-link a:hover { color:#0056b3; }
+    canvas { display:none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Absensi Harian</h2>
+    
+    <div class="info-box">
+      <p><strong>Petunjuk:</strong><br>
+      Pastikan wajah Anda terlihat jelas di kamera dan berada dalam area sekolah untuk absensi berhasil.</p>
+    </div>
+    
+    <video id="video" autoplay playsinline></video>
+    <button id="capture" disabled>Memuat Kamera...</button>
+    <canvas id="canvas"></canvas>
+    
+    <div class="back-link">
+      <a href="{{ url_for('index') }}">← Kembali ke Beranda</a>
+    </div>
+  </div>
+
+  <script>
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const context = canvas.getContext("2d");
+    const captureBtn = document.getElementById("capture");
+    let userLocation = null;
+
+    // Aktifkan kamera
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+      .then(stream => {
+        video.srcObject = stream;
+        console.log("✅ Kamera aktif");
+      })
+      .catch(err => {
+        console.error("❌ Kamera error:", err);
+        Swal.fire("Kamera Error", "Tidak bisa mengakses kamera. Periksa izin browser.", "error")
+          .then(() => window.location.href="{{ url_for('index') }}");
+      });
+
+    // Ambil lokasi GPS
+    async function getLocation() {
+      return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) return reject("Browser tidak mendukung GPS.");
+        navigator.geolocation.getCurrentPosition(
+          pos => resolve({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude
+          }),
+          err => reject("GPS error: " + err.message),
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+        );
+      });
+    }
+
+    // Inisialisasi sistem
+    window.addEventListener("load", async () => {
+      try {
+        userLocation = await getLocation();
+        console.log("✅ Lokasi:", userLocation);
+        captureBtn.disabled = false;
+        captureBtn.textContent = "📸 Ambil Foto & Absen";
+      } catch(e) {
+        console.error(e);
+        captureBtn.textContent = "GPS Tidak Tersedia";
+        Swal.fire("GPS Error", e, "warning")
+          .then(() => window.location.href="{{ url_for('index') }}");
+      }
+    });
+
+    // Tombol Absen
+    captureBtn.onclick = async () => {
+      if (!userLocation) {
+        return Swal.fire("GPS Error", "Lokasi belum tersedia, coba lagi.", "error");
+      }
+
+      captureBtn.disabled = true;
+      captureBtn.textContent = "⏳ Memproses...";
+
+      Swal.fire({
+        title: "Sedang memproses...",
+        html: "Mendeteksi wajah & memvalidasi lokasi...",
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+
+      try {
+        // Ambil frame dari video
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // Konversi ke Blob
+        canvas.toBlob(async blob => {
+          const formData = new FormData();
+          formData.append("foto", blob, "absen.jpg");
+          formData.append("lat", userLocation.lat);
+          formData.append("lng", userLocation.lng);
+
+          try {
+            const res = await fetch("/absen", { method: "POST", body: formData });
+            const data = await res.json();
+
+            if (data.success) {
+              Swal.fire({
+                icon: "success",
+                title: "Absensi Berhasil! ✅",
+                html: `
+                  <div style="text-align: left; background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                    <p><strong>📝 Nama:</strong> ${data.nama}</p>
+                    <p><strong>🏫 Kelas:</strong> ${data.kelas}</p>
+                    <p><strong>📚 Jurusan:</strong> ${data.jurusan}</p>
+                    <p><strong>✅ Status:</strong> <span style="background:#28a745;color:#fff;padding:4px 8px;border-radius:4px;font-weight:600;">${data.status}</span></p>
+                  </div>
+                `,
+                confirmButtonText: "📋 Lihat Data Absensi",
+                confirmButtonColor: "#007bff"
+              }).then(() => window.location.href = data.redirect);
+            } else {
+              Swal.fire({
+                icon: "error",
+                title: "Absensi Gagal ❌",
+                text: data.message || "Coba lagi dalam beberapa saat.",
+                confirmButtonText: "🔄 Coba Lagi",
+                confirmButtonColor: "#dc3545"
+              });
+            }
+          } catch(err) {
+            console.error(err);
+            Swal.fire({
+              icon: "error",
+              title: "Koneksi Bermasalah",
+              text: "Tidak dapat mengirim data ke server.",
+              confirmButtonColor: "#dc3545"
+            });
+          }
+        }, "image/jpeg", 0.9);
+
+      } catch(err) {
+        console.error("Capture error:", err);
+        Swal.fire("Error Kamera", "Gagal mengambil foto dari kamera.", "error");
+      } finally {
+        setTimeout(() => {
+          captureBtn.disabled = false;
+          captureBtn.textContent = "📸 Ambil Foto & Absen";
+        }, 3000);
+      }
+    };
+  </script>
+</body>
+</html>
