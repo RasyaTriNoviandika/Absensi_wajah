@@ -154,36 +154,67 @@ def get_all_siswa():
     return rows
 
 def cari_siswa_dengan_wajah(file_path):
-    """Cocokkan wajah dengan data siswa"""
+    """Cocokkan wajah dengan data siswa - Version dengan debug info"""
     try:
+        print(f"🔍 Memproses file: {file_path}")
+        
+        # Load dan deteksi wajah
         img_unknown = face_recognition.load_image_file(file_path)
         unknown_encodings = face_recognition.face_encodings(img_unknown)
+        
+        print(f"📸 Jumlah wajah terdeteksi: {len(unknown_encodings)}")
+        
         if not unknown_encodings:
+            print("❌ Tidak ada wajah terdeteksi pada foto")
             return None
 
         wajah_absen = unknown_encodings[0]
+        print(f"✅ Encoding wajah berhasil dibuat: {len(wajah_absen)} features")
 
+        # Ambil semua data siswa
         conn = sqlite3.connect(DB_NAME)
         cur = conn.cursor()
-        cur.execute("SELECT id, nama, kelas, jurusan, encoding FROM siswa")
+        cur.execute("SELECT id, nama, kelas, jurusan, encoding FROM siswa WHERE encoding IS NOT NULL")
         siswa_list = cur.fetchall()
         conn.close()
 
-        for sid, nama, kelas, jurusan, encoding_str in siswa_list:
+        print(f"👥 Total siswa terdaftar: {len(siswa_list)}")
+
+        if not siswa_list:
+            print("❌ Tidak ada siswa terdaftar dalam database")
+            return None
+
+        # Bandingkan dengan setiap siswa
+        for i, (sid, nama, kelas, jurusan, encoding_str) in enumerate(siswa_list):
             if not encoding_str:
+                print(f"⚠️ Siswa {nama} tidak memiliki encoding")
                 continue
+                
             try:
-                encoding = ast.literal_eval(encoding_str)
-            except Exception:
+                encoding_siswa = ast.literal_eval(encoding_str)
+                print(f"🔄 Membandingkan dengan {nama}...")
+                
+                # Coba beberapa tolerance level
+                tolerances = [0.4, 0.5, 0.6]
+                for tolerance in tolerances:
+                    result = face_recognition.compare_faces([encoding_siswa], wajah_absen, tolerance=tolerance)
+                    distance = face_recognition.face_distance([encoding_siswa], wajah_absen)[0]
+                    
+                    print(f"   Tolerance {tolerance}: Match={result[0]}, Distance={distance:.3f}")
+                    
+                    if result[0]:
+                        print(f"✅ MATCH FOUND! {nama} (Distance: {distance:.3f})")
+                        return {"id": sid, "nama": nama, "kelas": kelas, "jurusan": jurusan}
+                        
+            except Exception as e:
+                print(f"❌ Error parsing encoding untuk {nama}: {e}")
                 continue
 
-            result = face_recognition.compare_faces([encoding], wajah_absen, tolerance=0.5)
-            if result[0]:
-                return {"id": sid, "nama": nama, "kelas": kelas, "jurusan": jurusan}
-
+        print("❌ Tidak ada wajah yang cocok ditemukan")
         return None
+
     except Exception as e:
-        print("Error pencocokan wajah:", e)
+        print(f"❌ Error dalam pencocokan wajah: {e}")
         return None
 
 # ============= ROUTES LOGIN ADMIN =============
@@ -223,40 +254,109 @@ def admin_logout():
 # ---------------- ROUTES ----------------
 @app.route("/")
 def index():
-    return redirect(url_for("register_user"))
+    """Landing page dengan 2 pilihan utama"""
+    return render_template("user/index.html")
 
 # -------- USER (Tidak perlu login) --------
 @app.route("/register", methods=["GET", "POST"])
 def register_user():
     if request.method == "POST":
-        nama = request.form["nama"]
-        kelas = request.form["kelas"]
-        jurusan = request.form["jurusan"]
-        file = request.files["foto"]
+        nama = request.form.get("nama", "").strip()
+        kelas = request.form.get("kelas", "").strip()
+        jurusan = request.form.get("jurusan", "").strip()
+        file = request.files.get("foto")
 
-        os.makedirs(FACES_DIR, exist_ok=True)
-        foto_path = os.path.join(FACES_DIR, f"{uuid.uuid4().hex}.jpg")
-        file.save(foto_path)
+        # Validasi input yang lebih ketat
+        errors = []
+        
+        if not nama:
+            errors.append("Nama tidak boleh kosong!")
+        elif len(nama) < 2:
+            errors.append("Nama minimal 2 karakter!")
+            
+        if not kelas:
+            errors.append("Kelas harus dipilih!")
+            
+        if not jurusan:
+            errors.append("Jurusan harus dipilih!")
 
-        # Encode wajah
-        img = face_recognition.load_image_file(foto_path)
-        encodings = face_recognition.face_encodings(img)
-        if not encodings:
-            os.remove(foto_path)
-            return "Wajah tidak terdeteksi, coba lagi!", 400
+        if not file or file.filename == '':
+            errors.append("Foto wajah harus diupload!")
+        elif not file.filename.lower().endswith(('.png', '.jpg', '.jpeg')):
+            errors.append("Format foto harus JPG atau PNG!")
 
-        encoding = encodings[0].tolist()  # ubah jadi list
+        # Jika ada error, tampilkan kembali form
+        if errors:
+            for error in errors:
+                flash(error, "error")
+            return render_template("user/register.html")
 
-        conn = sqlite3.connect(DB_NAME)
-        cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO siswa (nama, kelas, jurusan, foto_path, encoding) VALUES (?, ?, ?, ?, ?)",
-            (nama, kelas, jurusan, foto_path, str(encoding))
-        )
-        conn.commit()
-        conn.close()
+        # Validasi ukuran file
+        file.seek(0, 2)  # Seek to end
+        file_size = file.tell()
+        file.seek(0)  # Reset to beginning
+        
+        if file_size > 5 * 1024 * 1024:  # 5MB
+            flash("Ukuran file terlalu besar! Maksimal 5MB.", "error")
+            return render_template("user/register.html")
 
-        return redirect(url_for("potret_user"))
+        try:
+            os.makedirs(FACES_DIR, exist_ok=True)
+            foto_path = os.path.join(FACES_DIR, f"{uuid.uuid4().hex}.jpg")
+            file.save(foto_path)
+
+            # Encode wajah dengan validasi yang lebih ketat
+            img = face_recognition.load_image_file(foto_path)
+            encodings = face_recognition.face_encodings(img)
+            
+            if not encodings:
+                os.remove(foto_path)
+                flash("❌ Wajah tidak terdeteksi pada foto! Tips: Pastikan foto jelas, cahaya cukup, dan wajah menghadap kamera.", "error")
+                return render_template("user/register.html")
+            
+            if len(encodings) > 1:
+                os.remove(foto_path)
+                flash("❌ Terdeteksi lebih dari 1 wajah dalam foto! Gunakan foto dengan 1 wajah saja.", "error")
+                return render_template("user/register.html")
+
+            # Cek duplikasi wajah dengan siswa yang sudah ada
+            encoding_baru = encodings[0]
+            conn = sqlite3.connect(DB_NAME)
+            cur = conn.cursor()
+            cur.execute("SELECT id, nama, encoding FROM siswa")
+            siswa_existing = cur.fetchall()
+            
+            for existing_id, existing_nama, existing_encoding_str in siswa_existing:
+                if existing_encoding_str:
+                    try:
+                        existing_encoding = ast.literal_eval(existing_encoding_str)
+                        result = face_recognition.compare_faces([existing_encoding], encoding_baru, tolerance=0.4)
+                        if result[0]:
+                            conn.close()
+                            os.remove(foto_path)
+                            flash(f"❌ Wajah sudah terdaftar atas nama: {existing_nama}. Gunakan foto orang yang berbeda.", "error")
+                            return render_template("user/register.html")
+                    except:
+                        continue
+
+            encoding = encoding_baru.tolist()
+
+            # Simpan data siswa
+            cur.execute(
+                "INSERT INTO siswa (nama, kelas, jurusan, foto_path, encoding) VALUES (?, ?, ?, ?, ?)",
+                (nama, kelas, jurusan, foto_path, str(encoding))
+            )
+            conn.commit()
+            conn.close()
+
+            flash(f"✅ Registrasi berhasil! Selamat datang {nama}.", "success")
+            return redirect(url_for("potret_user"))
+
+        except Exception as e:
+            if 'foto_path' in locals() and os.path.exists(foto_path):
+                os.remove(foto_path)
+            flash(f"❌ Error saat memproses foto: {str(e)}", "error")
+            return render_template("user/register.html")
 
     return render_template("user/register.html")
 
@@ -270,75 +370,89 @@ def potret_user():
     conn.close()
 
     if count == 0:
+        flash("Belum ada siswa terdaftar! Silakan daftarkan siswa terlebih dahulu.", "error")
         return redirect(url_for("register_user"))
     return render_template("user/potret.html")
 
 @app.route("/absen", methods=["POST"])
 def absen():
     """Proses absensi siswa"""
-    file = request.files["foto"]
-    lat = float(request.form["lat"])
-    lng = float(request.form["lng"])
+    try:
+        file = request.files["foto"]
+        lat = float(request.form["lat"])
+        lng = float(request.form["lng"])
 
-    filename = f"{uuid.uuid4().hex}.jpg"
-    filepath = os.path.join(UPLOAD_DIR, filename)
-    file.save(filepath)
+        filename = f"{uuid.uuid4().hex}.jpg"
+        filepath = os.path.join(UPLOAD_DIR, filename)
+        file.save(filepath)
 
-    # Ambil area absensi dari DB
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-    cur.execute("SELECT latitude, longitude, radius FROM settings WHERE id=1")
-    row = cur.fetchone()
-    conn.close()
-
-    school_lat, school_lng, radius = row
-    jarak = hitung_jarak(lat, lng, school_lat, school_lng)
-
-    status = "HADIR" if jarak <= radius else f"HADIR (Diluar area, {jarak:.2f} m)"
-
-    siswa = cari_siswa_dengan_wajah(filepath)
-
-    if os.path.exists(filepath):
-        os.remove(filepath)
-
-    if not siswa:
-        return jsonify({"success": False, "message": "Wajah tidak dikenali!"})
-
-    # Waktu lokal WIB
-    waktu_lokal = datetime.utcnow() + timedelta(hours=7)
-    tanggal_hari_ini = waktu_lokal.date()
-
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-
-    # Cek apakah sudah absen hari ini
-    cur.execute("""
-        SELECT id FROM absensi
-        WHERE siswa_id = ? AND DATE(waktu) = ?
-    """, (siswa["id"], tanggal_hari_ini))
-    sudah_absen = cur.fetchone()
-
-    if sudah_absen:
+        # Ambil area absensi dari DB
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+        cur.execute("SELECT latitude, longitude, radius FROM settings WHERE id=1")
+        row = cur.fetchone()
         conn.close()
-        return jsonify({"success": False, "message": f"{siswa['nama']} Sudah Absen Silahkan Absen Untuk Besok hari!"})
 
-    # Simpan absensi baru
-    cur.execute("""
-        INSERT INTO absensi (siswa_id, nama, kelas, jurusan, latitude, longitude, status, waktu) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    """, (siswa["id"], siswa["nama"], siswa["kelas"], siswa["jurusan"], lat, lng, status, waktu_lokal))
+        school_lat, school_lng, radius = row
+        jarak = hitung_jarak(lat, lng, school_lat, school_lng)
 
-    conn.commit()
-    conn.close()
+        # Perbaikan logika status yang lebih jelas
+        if jarak <= radius:
+            status = "HADIR"
+        else:
+            status = f"TERLAMBAT/DILUAR AREA ({jarak:.0f}m dari sekolah)"
 
-    return jsonify({
-        "success": True,
-        "redirect": url_for("absensi_user"),
-        "nama": siswa["nama"],
-        "kelas": siswa["kelas"],
-        "jurusan": siswa["jurusan"],
-        "status": status
-    })
+        siswa = cari_siswa_dengan_wajah(filepath)
+
+        # Hapus file temporary
+        if os.path.exists(filepath):
+            os.remove(filepath)
+
+        if not siswa:
+            return jsonify({"success": False, "message": "Wajah tidak dikenali! Pastikan Anda sudah terdaftar."})
+
+        # Waktu lokal WIB
+        waktu_lokal = datetime.utcnow() + timedelta(hours=7)
+        tanggal_hari_ini = waktu_lokal.date()
+
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+
+        # Cek apakah sudah absen hari ini
+        cur.execute("""
+            SELECT id FROM absensi
+            WHERE siswa_id = ? AND DATE(waktu) = ?
+        """, (siswa["id"], tanggal_hari_ini))
+        sudah_absen = cur.fetchone()
+
+        if sudah_absen:
+            conn.close()
+            return jsonify({"success": False, "message": f"{siswa['nama']} sudah absen hari ini! Silakan absen besok."})
+
+        # Simpan absensi baru
+        cur.execute("""
+            INSERT INTO absensi (siswa_id, nama, kelas, jurusan, latitude, longitude, status, waktu) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (siswa["id"], siswa["nama"], siswa["kelas"], siswa["jurusan"], lat, lng, status, waktu_lokal))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            "success": True,
+            "redirect": url_for("absensi_user"),
+            "nama": siswa["nama"],
+            "kelas": siswa["kelas"],
+            "jurusan": siswa["jurusan"],
+            "status": status
+        })
+
+    except Exception as e:
+        # Hapus file jika ada error
+        if 'filepath' in locals() and os.path.exists(filepath):
+            os.remove(filepath)
+        
+        return jsonify({"success": False, "message": f"Terjadi kesalahan: {str(e)}"})
 
 @app.route("/absensi")
 def absensi_user():
@@ -427,9 +541,59 @@ def admin_absensi():
 def admin_absen_area():
     return render_template("admin/absen_area.html")
 
-@app.route("/admin/register")
+@app.route("/admin/register", methods=["GET", "POST"])
 @login_required
 def admin_register():
+    if request.method == "POST":
+        nama = request.form["nama"]
+        kelas = request.form["kelas"]
+        jurusan = request.form["jurusan"]
+        file = request.files["foto"]
+
+        # Validasi file
+        if not file or file.filename == '':
+            flash("Foto wajah harus diupload!", "error")
+            return render_template("admin/register.html")
+
+        os.makedirs(FACES_DIR, exist_ok=True)
+        foto_path = os.path.join(FACES_DIR, f"{uuid.uuid4().hex}.jpg")
+        file.save(foto_path)
+
+        # Encode wajah dengan validasi yang lebih ketat
+        try:
+            img = face_recognition.load_image_file(foto_path)
+            encodings = face_recognition.face_encodings(img)
+            
+            if not encodings:
+                os.remove(foto_path)
+                flash("Wajah tidak terdeteksi pada foto! Pastikan foto jelas dan menghadap kamera.", "error")
+                return render_template("admin/register.html")
+            
+            if len(encodings) > 1:
+                flash("Terdeteksi lebih dari 1 wajah dalam foto! Gunakan foto dengan 1 wajah saja.", "error")
+                os.remove(foto_path)
+                return render_template("admin/register.html")
+
+            encoding = encodings[0].tolist()
+
+            conn = sqlite3.connect(DB_NAME)
+            cur = conn.cursor()
+            cur.execute(
+                "INSERT INTO siswa (nama, kelas, jurusan, foto_path, encoding) VALUES (?, ?, ?, ?, ?)",
+                (nama, kelas, jurusan, foto_path, str(encoding))
+            )
+            conn.commit()
+            conn.close()
+
+            flash(f"Siswa {nama} berhasil didaftarkan!", "success")
+            return redirect(url_for("admin_register"))
+
+        except Exception as e:
+            if os.path.exists(foto_path):
+                os.remove(foto_path)
+            flash(f"Error saat memproses foto: {str(e)}", "error")
+            return render_template("admin/register.html")
+
     return render_template("admin/register.html")
 
 @app.route("/admin/set_area", methods=["POST"])
@@ -597,9 +761,6 @@ def print_absensi():
 @app.route("/admin/settings", methods=["GET", "POST"])
 @login_required
 def admin_settings():
-    message_category = None
-    message_text = None
-
     if request.method == "POST":
         old_password = request.form.get("old_password")
         new_password = request.form.get("new_password")
@@ -611,30 +772,33 @@ def admin_settings():
         row = cur.fetchone()
 
         if new_password != confirm_password:
-            message_category = "error"
-            message_text = "Password baru dan konfirmasi tidak sama!"
+            flash("Password baru dan konfirmasi tidak sama!", "error")
         elif not row or not check_password_hash(row[0], old_password):
-            message_category = "error"
-            message_text = "Password lama salah!"
+            flash("Password lama salah!", "error")
         else:
             # Update password
             new_hash = generate_password_hash(new_password)
             cur.execute("UPDATE admin SET password_hash = ? WHERE id = ?", (new_hash, session['admin_id']))
             conn.commit()
-            message_category = "success"
-            message_text = "Password berhasil diubah!"
+            flash("Password berhasil diubah!", "success")
 
         conn.close()
 
-        if message_text:
-            flash(message_text, message_category)
-            # render halaman langsung, jangan redirect agar flash muncul
-            return render_template("admin/settings.html", admin_username=session.get('admin_username'))
-
     return render_template("admin/settings.html", admin_username=session.get('admin_username'))
+
+# ---------------- Initialize Database and Admin ----------------
+def init_app():
+    """Initialize database and create default admin"""
+    buat_tabel()
+    buat_admin_default()
+
+# Initialize saat import
+try:
+    init_app()
+except Exception as e:
+    print(f"Warning: Database initialization failed: {e}")
 
 # ---------------- Main ----------------
 if __name__ == "__main__":
-    import os
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host="0.0.0.0", port=port, debug=True)  # Enable debug untuk melihat error
