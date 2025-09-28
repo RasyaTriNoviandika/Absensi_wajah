@@ -257,6 +257,21 @@ def index():
     """Landing page dengan 2 pilihan utama"""
     return render_template("user/index.html")
 
+# Route reset db /tabel
+@app.route("/reset_db")
+@login_required
+def reset_db():
+    # Hapus file database lama
+    if os.path.exists(DB_NAME):
+        os.remove(DB_NAME)
+
+    # Buat ulang tabel & admin default
+    buat_tabel()
+    buat_admin_default()
+
+    flash("✅ Database berhasil direset (semua data siswa & absensi terhapus).", "success")
+    return redirect(url_for("admin_index"))
+
 # -------- USER (Tidak perlu login) --------
 @app.route("/register", methods=["GET", "POST"])
 def register_user():
