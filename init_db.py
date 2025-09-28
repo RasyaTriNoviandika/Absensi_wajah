@@ -14,7 +14,7 @@ def init_db():
             kelas TEXT NOT NULL,
             jurusan TEXT NOT NULL,
             foto_path TEXT NOT NULL,
-            encoding BLOB NOT NULL
+            encoding BLOB 
         )
     """)
 

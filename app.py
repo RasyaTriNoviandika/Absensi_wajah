@@ -27,12 +27,17 @@ SCHOOL_LAT = -6.260960
 SCHOOL_LNG = 106.959603
 RADIUS = 15  
 
-DB_NAME = "database.db"
-FACES_DIR = "faces"
-UPLOAD_DIR = "uploads"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+DB_NAME = os.path.join(BASE_DIR, "database.db")
+FACES_DIR = os.path.join(BASE_DIR, "faces")
+UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 
 # Buat folder upload jika belum ada
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(FACES_DIR, exist_ok=True)
+
+print(f"📂 Database path yang dipakai: {DB_NAME}")  # Debug
 
 # ============= FUNGSI KEAMANAN =============
 def login_required(f):
@@ -90,7 +95,7 @@ def buat_tabel():
             kelas TEXT NOT NULL,
             jurusan TEXT NOT NULL,
             foto_path TEXT NOT NULL,
-            encoding TEXT
+            encoding BLOB
         )
     """)
 
@@ -191,7 +196,7 @@ def cari_siswa_dengan_wajah(file_path):
                 continue
                 
             try:
-                encoding_siswa = ast.literal_eval(encoding_str)
+                encoding_siswa = np.frombuffer(encoding_str, dtype=np.float64)
                 print(f"🔄 Membandingkan dengan {nama}...")
                 
                 # Coba beberapa tolerance level
@@ -276,118 +281,89 @@ def reset_db():
 @app.route("/register", methods=["GET", "POST"])
 def register_user():
     if request.method == "POST":
-        nama = request.form.get("nama", "").strip()
-        kelas = request.form.get("kelas", "").strip()
-        jurusan = request.form.get("jurusan", "").strip()
+        nama = request.form.get("nama")
+        kelas = request.form.get("kelas")
+        jurusan = request.form.get("jurusan")
+        
+        if not nama or not kelas or not jurusan:
+            flash("Semua field wajib diisi!", "error")
+            return redirect(url_for("register_user"))
+
+        # Buat entri siswa dulu (foto_path & encoding kosong sementara)
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO siswa (nama, kelas, jurusan, foto_path, encoding) VALUES (?, ?, ?, ?, ?)",
+            (nama, kelas, jurusan, "", None)
+        )
+        siswa_id = cur.lastrowid
+        conn.commit()
+        conn.close()
+
+        flash("Registrasi berhasil! Silakan upload foto wajah.", "success")
+        return redirect(url_for("potret_user", siswa_id=siswa_id))
+
+    return render_template("user/register.html")
+
+@app.route("/potret/<int:siswa_id>", methods=["GET", "POST"])
+def potret_user(siswa_id):
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    cur.execute("SELECT id, nama, kelas, jurusan FROM siswa WHERE id=?", (siswa_id,))
+    row = cur.fetchone()
+    conn.close()
+
+    if not row:
+        flash("Siswa tidak ditemukan!", "error")
+        return redirect(url_for("register_user"))
+
+    siswa = {"id": row[0], "nama": row[1], "kelas": row[2], "jurusan": row[3]}
+
+    if request.method == "POST":
         file = request.files.get("foto")
+        if not file or file.filename == "":
+            flash("Foto wajib diupload!", "error")
+            return render_template("user/potret.html", siswa=siswa)
 
-        # Validasi input yang lebih ketat
-        errors = []
-        
-        if not nama:
-            errors.append("Nama tidak boleh kosong!")
-        elif len(nama) < 2:
-            errors.append("Nama minimal 2 karakter!")
-            
-        if not kelas:
-            errors.append("Kelas harus dipilih!")
-            
-        if not jurusan:
-            errors.append("Jurusan harus dipilih!")
-
-        if not file or file.filename == '':
-            errors.append("Foto wajah harus diupload!")
-        elif not file.filename.lower().endswith(('.png', '.jpg', '.jpeg')):
-            errors.append("Format foto harus JPG atau PNG!")
-
-        # Jika ada error, tampilkan kembali form
-        if errors:
-            for error in errors:
-                flash(error, "error")
-            return render_template("user/register.html")
-
-        # Validasi ukuran file
-        file.seek(0, 2)  # Seek to end
-        file_size = file.tell()
-        file.seek(0)  # Reset to beginning
-        
-        if file_size > 5 * 1024 * 1024:  # 5MB
-            flash("Ukuran file terlalu besar! Maksimal 5MB.", "error")
-            return render_template("user/register.html")
+        os.makedirs(FACES_DIR, exist_ok=True)
+        foto_path = os.path.join(FACES_DIR, f"{uuid.uuid4().hex}.jpg")
+        file.save(foto_path)
 
         try:
-            os.makedirs(FACES_DIR, exist_ok=True)
-            foto_path = os.path.join(FACES_DIR, f"{uuid.uuid4().hex}.jpg")
-            file.save(foto_path)
-
-            # Encode wajah dengan validasi yang lebih ketat
             img = face_recognition.load_image_file(foto_path)
             encodings = face_recognition.face_encodings(img)
-            
+
             if not encodings:
                 os.remove(foto_path)
-                flash("❌ Wajah tidak terdeteksi pada foto! Tips: Pastikan foto jelas, cahaya cukup, dan wajah menghadap kamera.", "error")
-                return render_template("user/register.html")
-            
+                flash("Wajah tidak terdeteksi, pastikan foto jelas!", "error")
+                return render_template("user/potret.html", siswa=siswa)
+
             if len(encodings) > 1:
                 os.remove(foto_path)
-                flash("❌ Terdeteksi lebih dari 1 wajah dalam foto! Gunakan foto dengan 1 wajah saja.", "error")
-                return render_template("user/register.html")
-
-            # Cek duplikasi wajah dengan siswa yang sudah ada
-            encoding_baru = encodings[0]
+                flash("Foto hanya boleh berisi 1 wajah!", "error")
+                return render_template("user/potret.html", siswa=siswa)
+            
+            # Simpan encoding ke database
+            encoding = encodings[0]
             conn = sqlite3.connect(DB_NAME)
             cur = conn.cursor()
-            cur.execute("SELECT id, nama, encoding FROM siswa")
-            siswa_existing = cur.fetchall()
-            
-            for existing_id, existing_nama, existing_encoding_str in siswa_existing:
-                if existing_encoding_str:
-                    try:
-                        existing_encoding = ast.literal_eval(existing_encoding_str)
-                        result = face_recognition.compare_faces([existing_encoding], encoding_baru, tolerance=0.4)
-                        if result[0]:
-                            conn.close()
-                            os.remove(foto_path)
-                            flash(f"❌ Wajah sudah terdaftar atas nama: {existing_nama}. Gunakan foto orang yang berbeda.", "error")
-                            return render_template("user/register.html")
-                    except:
-                        continue
-
-            encoding = encoding_baru.tolist()
-
-            # Simpan data siswa
             cur.execute(
-                "INSERT INTO siswa (nama, kelas, jurusan, foto_path, encoding) VALUES (?, ?, ?, ?, ?)",
-                (nama, kelas, jurusan, foto_path, str(encoding))
+                "UPDATE siswa SET foto_path=?, encoding=? WHERE id=?",
+                (foto_path, encoding.tobytes(), siswa_id)
             )
             conn.commit()
             conn.close()
 
-            flash(f"✅ Registrasi berhasil! Selamat datang {nama}.", "success")
-            return redirect(url_for("potret_user"))
+            flash("Wajah berhasil disimpan, sekarang Anda bisa absen.", "success")
+            return redirect(url_for("index"))
 
         except Exception as e:
-            if 'foto_path' in locals() and os.path.exists(foto_path):
+            if os.path.exists(foto_path):
                 os.remove(foto_path)
-            flash(f"❌ Error saat memproses foto: {str(e)}", "error")
-            return render_template("user/register.html")
+            flash(f"Error saat memproses foto: {str(e)}", "error")
+            return render_template("user/potret.html", siswa=siswa)
 
-    return render_template("user/register.html")
-
-@app.route("/potret")
-def potret_user():
-    """Halaman untuk potret & absen"""
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-    cur.execute("SELECT COUNT(*) FROM siswa")
-    count = cur.fetchone()[0]
-    conn.close()
-
-    if count == 0:
-        flash("Belum ada siswa terdaftar! Silakan daftarkan siswa terlebih dahulu.", "error")
-        return redirect(url_for("register_user"))
-    return render_template("user/potret.html")
+    return render_template("user/potret.html", siswa=siswa)
 
 @app.route("/absen", methods=["POST"])
 def absen():
@@ -556,6 +532,7 @@ def admin_absensi():
 def admin_absen_area():
     return render_template("admin/absen_area.html")
 
+
 @app.route("/admin/register", methods=["GET", "POST"])
 @login_required
 def admin_register():
@@ -565,7 +542,6 @@ def admin_register():
         jurusan = request.form["jurusan"]
         file = request.files["foto"]
 
-        # Validasi file
         if not file or file.filename == '':
             flash("Foto wajah harus diupload!", "error")
             return render_template("admin/register.html")
@@ -574,28 +550,27 @@ def admin_register():
         foto_path = os.path.join(FACES_DIR, f"{uuid.uuid4().hex}.jpg")
         file.save(foto_path)
 
-        # Encode wajah dengan validasi yang lebih ketat
         try:
             img = face_recognition.load_image_file(foto_path)
             encodings = face_recognition.face_encodings(img)
             
             if not encodings:
                 os.remove(foto_path)
-                flash("Wajah tidak terdeteksi pada foto! Pastikan foto jelas dan menghadap kamera.", "error")
+                flash("Wajah tidak terdeteksi pada foto!", "error")
                 return render_template("admin/register.html")
             
             if len(encodings) > 1:
-                flash("Terdeteksi lebih dari 1 wajah dalam foto! Gunakan foto dengan 1 wajah saja.", "error")
                 os.remove(foto_path)
+                flash("Gunakan foto dengan 1 wajah saja!", "error")
                 return render_template("admin/register.html")
 
-            encoding = encodings[0].tolist()
+            encoding = encodings[0]
 
             conn = sqlite3.connect(DB_NAME)
             cur = conn.cursor()
             cur.execute(
                 "INSERT INTO siswa (nama, kelas, jurusan, foto_path, encoding) VALUES (?, ?, ?, ?, ?)",
-                (nama, kelas, jurusan, foto_path, str(encoding))
+                (nama, kelas, jurusan, foto_path, encoding.tobytes())
             )
             conn.commit()
             conn.close()

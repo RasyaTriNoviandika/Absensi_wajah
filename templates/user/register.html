@@ -287,218 +287,115 @@
         </div>
         {% endif %}
         {% endwith %}
+<form id="registerForm" action="{{ url_for('register_user') }}" method="POST">
+    <div class="form-group">
+        <label for="nama">Nama Lengkap <span class="required">*</span></label>
+        <input type="text" id="nama" name="nama" required placeholder="Masukkan nama lengkap siswa" autocomplete="name">
+        <div class="error" id="nama-error">Nama harus diisi!</div>
+    </div>
 
-        <form id="registerForm" action="{{ url_for('register_user') }}" method="POST" enctype="multipart/form-data">
-            <div class="form-group">
-                <label for="nama">Nama Lengkap <span class="required">*</span></label>
-                <input type="text" id="nama" name="nama" required placeholder="Masukkan nama lengkap siswa" autocomplete="name">
-                <div class="error" id="nama-error">Nama harus diisi!</div>
-            </div>
+    <div class="form-group">
+        <label>Kelas <span class="required">*</span></label>
+        <div class="radio-group">
+            <label class="radio-item">
+                <input type="radio" name="kelas" value="X" required>
+                <span>Kelas X</span>
+            </label>
+            <label class="radio-item">
+                <input type="radio" name="kelas" value="XI" required>
+                <span>Kelas XI</span>
+            </label>
+            <label class="radio-item">
+                <input type="radio" name="kelas" value="XII" required>
+                <span>Kelas XII</span>
+            </label>
+        </div>
+        <div class="error" id="kelas-error">Pilih kelas terlebih dahulu!</div>
+    </div>
 
-            <div class="form-group">
-                <label>Kelas <span class="required">*</span></label>
-                <div class="radio-group">
-                    <label class="radio-item">
-                        <input type="radio" name="kelas" value="X" required>
-                        <span>Kelas X</span>
-                    </label>
-                    <label class="radio-item">
-                        <input type="radio" name="kelas" value="XI" required>
-                        <span>Kelas XI</span>
-                    </label>
-                    <label class="radio-item">
-                        <input type="radio" name="kelas" value="XII" required>
-                        <span>Kelas XII</span>
-                    </label>
-                </div>
-                <div class="error" id="kelas-error">Pilih kelas terlebih dahulu!</div>
-            </div>
+    <div class="form-group">
+        <label>Jurusan <span class="required">*</span></label>
+        <div class="radio-group">
+            <label class="radio-item">
+                <input type="radio" name="jurusan" value="SIJA" required>
+                <span>SIJA</span>
+            </label>
+            <label class="radio-item">
+                <input type="radio" name="jurusan" value="DKV" required>
+                <span>DKV</span>
+            </label>
+            <label class="radio-item">
+                <input type="radio" name="jurusan" value="PB" required>
+                <span>PB</span>
+            </label>
+        </div>
+        <div class="error" id="jurusan-error">Pilih jurusan terlebih dahulu!</div>
+    </div>
 
-            <div class="form-group">
-                <label>Jurusan <span class="required">*</span></label>
-                <div class="radio-group">
-                    <label class="radio-item">
-                        <input type="radio" name="jurusan" value="SIJA" required>
-                        <span>SIJA</span>
-                    </label>
-                    <label class="radio-item">
-                        <input type="radio" name="jurusan" value="DKV" required>
-                        <span>DKV</span>
-                    </label>
-                    <label class="radio-item">
-                        <input type="radio" name="jurusan" value="PB" required>
-                        <span>PB</span>
-                    </label>
-                    <label class="radio-item">
-                        <input type="radio" name="jurusan" value="TKJ" required>
-                        <span>TKJ</span>
-                    </label>
-                    <label class="radio-item">
-                        <input type="radio" name="jurusan" value="OTKP" required>
-                        <span>OTKP</span>
-                    </label>
-                    <label class="radio-item">
-                        <input type="radio" name="jurusan" value="AKL" required>
-                        <span>AKL</span>
-                    </label>
-                </div>
-                <div class="error" id="jurusan-error">Pilih jurusan terlebih dahulu!</div>
-            </div>
+    <button type="submit" class="submit-btn" id="submitBtn">
+        📝 Daftarkan Siswa
+    </button>
+</form>
 
-            <div class="form-group">
-                <label for="foto">Foto Wajah <span class="required">*</span></label>
-                <input type="file" id="foto" name="foto" accept="image/*" required>
-                <div class="file-info" id="file-info">
-                    * Upload foto wajah yang jelas (format: JPG, PNG, maksimal 5MB)
-                </div>
-                <div class="error" id="foto-error">Foto wajah harus diupload!</div>
-            </div>
-
-            <button type="submit" class="submit-btn" id="submitBtn">
-                📝 Daftarkan Siswa
-            </button>
-        </form>
 
         <div class="back-link">
             <a href="{{ url_for('index') }}">← Kembali ke Beranda</a>
         </div>
     </div>
 
-    <script>
-        const form = document.getElementById('registerForm');
-        const submitBtn = document.getElementById('submitBtn');
-        const namaInput = document.getElementById('nama');
-        const fotoInput = document.getElementById('foto');
-        const fileInfo = document.getElementById('file-info');
+   <script>
+    const form = document.getElementById('registerForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const namaInput = document.getElementById('nama');
 
-        // Real-time validation
-        namaInput.addEventListener('input', function() {
-            const error = document.getElementById('nama-error');
-            if (this.value.trim() === '') {
-                error.classList.add('show');
-                this.style.borderColor = '#dc3545';
-            } else {
-                error.classList.remove('show');
-                this.style.borderColor = '#28a745';
-            }
-        });
+    // Real-time validation nama
+    namaInput.addEventListener('input', function() {
+        const error = document.getElementById('nama-error');
+        if (this.value.trim() === '') {
+            error.classList.add('show');
+            this.style.borderColor = '#dc3545';
+        } else {
+            error.classList.remove('show');
+            this.style.borderColor = '#28a745';
+        }
+    });
 
-        // File validation
-        fotoInput.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            const error = document.getElementById('foto-error');
-            
-            if (file) {
-                // Check file size (5MB max)
-                if (file.size > 5 * 1024 * 1024) {
-                    error.textContent = 'Ukuran file terlalu besar! Maksimal 5MB.';
-                    error.classList.add('show');
-                    this.value = '';
-                    fileInfo.innerHTML = '* Upload foto wajah yang jelas (format: JPG, PNG, maksimal 5MB)';
-                    fileInfo.style.color = '#666';
-                    return;
-                }
-
-                // Check file type
-                const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
-                if (!allowedTypes.includes(file.type)) {
-                    error.textContent = 'Format file tidak didukung! Gunakan JPG atau PNG.';
-                    error.classList.add('show');
-                    this.value = '';
-                    fileInfo.innerHTML = '* Upload foto wajah yang jelas (format: JPG, PNG, maksimal 5MB)';
-                    fileInfo.style.color = '#666';
-                    return;
-                }
-
-                // File valid
-                error.classList.remove('show');
-                const fileSize = (file.size / 1024 / 1024).toFixed(2);
-                fileInfo.innerHTML = `✅ File terpilih: ${file.name} (${fileSize} MB)`;
-                fileInfo.style.color = '#28a745';
-                this.style.borderColor = '#28a745';
-            } else {
-                error.classList.add('show');
-                this.style.borderColor = '#dc3545';
-            }
-        });
-
-        // Form validation before submit
-        function validateForm() {
-            let isValid = true;
-
-            // Check nama
-            const nama = namaInput.value.trim();
-            if (nama === '') {
-                document.getElementById('nama-error').classList.add('show');
-                namaInput.style.borderColor = '#dc3545';
-                isValid = false;
-            }
-
-            // Check kelas
-            const kelas = document.querySelector('input[name="kelas"]:checked');
-            if (!kelas) {
-                document.getElementById('kelas-error').classList.add('show');
-                isValid = false;
-            }
-
-            // Check jurusan
-            const jurusan = document.querySelector('input[name="jurusan"]:checked');
-            if (!jurusan) {
-                document.getElementById('jurusan-error').classList.add('show');
-                isValid = false;
-            }
-
-            // Check foto
-            if (!fotoInput.files[0]) {
-                document.getElementById('foto-error').classList.add('show');
-                fotoInput.style.borderColor = '#dc3545';
-                isValid = false;
-            }
-
-            return isValid;
+    // Form submission
+    form.addEventListener('submit', function(e) {
+        if (namaInput.value.trim() === '') {
+            e.preventDefault();
+            alert('❌ Mohon lengkapi semua field yang wajib diisi!');
+            return false;
         }
 
-        // Form submission
-        form.addEventListener('submit', function(e) {
-            if (!validateForm()) {
-                e.preventDefault();
-                alert('❌ Mohon lengkapi semua field yang wajib diisi!');
-                return false;
-            }
+        // Tampilkan loading
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '⏳ Memproses...';
+    });
 
-            // Show loading
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '⏳ Memproses...';
-            
-            // Prevent double submission
-            setTimeout(() => {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '📝 Daftarkan Siswa';
-            }, 3000);
+    // Hide errors on radio selection
+    document.querySelectorAll('input[name="kelas"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            document.getElementById('kelas-error').classList.remove('show');
         });
+    });
 
-        // Hide errors on radio selection
-        document.querySelectorAll('input[name="kelas"]').forEach(radio => {
-            radio.addEventListener('change', function() {
-                document.getElementById('kelas-error').classList.remove('show');
-            });
+    document.querySelectorAll('input[name="jurusan"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            document.getElementById('jurusan-error').classList.remove('show');
         });
+    });
 
-        document.querySelectorAll('input[name="jurusan"]').forEach(radio => {
-            radio.addEventListener('change', function() {
-                document.getElementById('jurusan-error').classList.remove('show');
-            });
-        });
+    // Auto-focus ke nama field
+    document.addEventListener('DOMContentLoaded', function() {
+        namaInput.focus();
+    });
 
-        // Auto-focus ke nama field
-        document.addEventListener('DOMContentLoaded', function() {
-            namaInput.focus();
-        });
+    // Prevent form resubmission on page refresh
+    if (window.history.replaceState) {
+        window.history.replaceState(null, null, window.location.href);
+    }
+</script>
 
-        // Prevent form resubmission on page refresh
-        if (window.history.replaceState) {
-            window.history.replaceState(null, null, window.location.href);
-        }
-    </script>
 </body>
 </html>

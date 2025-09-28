@@ -130,10 +130,16 @@
           formData.append("foto", blob, "absen.jpg");
           formData.append("lat", userLocation.lat);
           formData.append("lng", userLocation.lng);
+          // ✅ data dari session register
+formData.append("nama", "{{ session.get('nama') }}");
+formData.append("kelas", "{{ session.get('kelas') }}");
+formData.append("jurusan", "{{ session.get('jurusan') }}");
 
           try {
-            const res = await fetch("/absen",{ method:"POST", body:formData });
-            const data = await res.json();
+               const res = await fetch("/potret/{{ siswa.id }}", { 
+              method: "POST", 
+              body: formData 
+              });
 
             if (data.success) {
               Swal.fire({
@@ -166,6 +172,7 @@
         },2000);
       }
     };
+    
   </script>
 </body>
 </html>

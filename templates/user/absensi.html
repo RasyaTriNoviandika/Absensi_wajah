@@ -190,7 +190,11 @@
 <div class="container">
     <h2>📋 Daftar Absensi</h2>
 
-    <a href="{{ url_for('potret_user') }}" class="button">📸 Potret & Absen</a>
+   {% if session.get('siswa_id') %}
+    <a href="{{ url_for('potret_user', siswa_id=session['siswa_id']) }}" class="button">📸 Potret & Absen</a>
+{% else %}
+    <a href="{{ url_for('register_user') }}" class="button">📸 Registrasi dulu</a>
+{% endif %}
 
     <div class="table-container">
         <table>
