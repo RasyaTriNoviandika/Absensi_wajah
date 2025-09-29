@@ -122,19 +122,17 @@
         }, 5000);
 
         // Validasi absen - cek apakah sudah ada siswa terdaftar
-      document.getElementById('absenBtn').addEventListener('click', async function() {
+        document.getElementById('absenBtn').addEventListener('click', async function () {
     try {
-        const response = await fetch('/check_registered');
-        const data = await response.json();
+        const check = await fetch('/check_registered');
+        const data = await check.json();
 
         if (!data.registered) {
             Swal.fire({
                 icon: 'warning',
                 title: 'Belum Terdaftar',
-                html: `
-                    <p>Anda belum terdaftar di sistem absensi.</p>
-                    <p><strong>Silakan registrasi terlebih dahulu!</strong></p>
-                `,
+                html: `<p>Anda belum terdaftar di sistem absensi.</p>
+                       <p><strong>Silakan registrasi terlebih dahulu!</strong></p>`,
                 confirmButtonText: '👤 Daftar Sekarang',
                 confirmButtonColor: '#007bff'
             }).then((result) => {
@@ -142,17 +140,54 @@
                     window.location.href = "{{ url_for('register_user') }}";
                 }
             });
-        } else {
-            // kalau sudah terdaftar → masuk ke absensi
-            window.location.href = "{{ url_for('absen_harian') }}";
+            return;
         }
-    } catch (err) {
-        console.error(err);
-        Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'Registrasi Sebelum Absen! .'
+
+        // 📸 Ambil foto dari kamera
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const video = document.createElement('video');
+        video.srcObject = stream;
+        await video.play();
+
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+
+        // stop kamera biar hemat baterai
+        stream.getTracks().forEach(track => track.stop());
+
+        // Ambil lokasi 📍
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+
+            canvas.toBlob(async (blob) => {
+                const formData = new FormData();
+                formData.append('foto', blob, 'absen.jpg');
+                formData.append('lat', lat);
+                formData.append('lng', lng);
+
+                try {
+                    const res = await fetch('/absen', { method: 'POST', body: formData });
+                    const result = await res.json();
+
+                    if (result.success) {
+                        Swal.fire('✅ Sukses', result.message, 'success');
+                    } else {
+                        Swal.fire('❌ Gagal', result.message, 'error');
+                    }
+                } catch (err) {
+                    Swal.fire('⚠️ Error', 'Tidak bisa menghubungi server.', 'error');
+                }
+            }, 'image/jpeg', 0.9);
+
+        }, () => {
+            Swal.fire('⚠️ Error', 'Lokasi tidak bisa diambil. Aktifkan GPS.', 'error');
         });
+
+    } catch (err) {
+        Swal.fire('⚠️ Error', 'Terjadi masalah saat menghubungi server.', 'error');
     }
 });
     </script>
