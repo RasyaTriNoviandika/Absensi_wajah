@@ -122,45 +122,39 @@
         }, 5000);
 
         // Validasi absen - cek apakah sudah ada siswa terdaftar
-        document.getElementById('absenBtn').addEventListener('click', async function() {
-            try {
-                // Cek ke server apakah ada siswa yang sudah terdaftar
-                const response = await fetch('/check_students');
-                const data = await response.json();
-                
-                if (data.total_students === 0) {
-                    // Tampilkan popup jika belum ada siswa terdaftar
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Belum Ada Siswa Terdaftar',
-                        html: `
-                            <p>Belum ada siswa yang terdaftar di sistem.</p>
-                            <p><strong>Silakan registrasi terlebih dahulu!</strong></p>
-                        `,
-                        showCancelButton: true,
-                        confirmButtonText: '👤 Daftar Sekarang',
-                        cancelButtonText: 'Batal',
-                        confirmButtonColor: '#007bff',
-                        cancelButtonColor: '#6c757d'
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            window.location.href = "{{ url_for('register_user') }}";
-                        }
-                    });
-                } else {
-                    // Jika sudah ada siswa, lanjut ke halaman absen
-                    window.location.href = "{{ url_for('absen_harian') }}";
+      document.getElementById('absenBtn').addEventListener('click', async function() {
+    try {
+        const response = await fetch('/check_registered');
+        const data = await response.json();
+
+        if (!data.registered) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Belum Terdaftar',
+                html: `
+                    <p>Anda belum terdaftar di sistem absensi.</p>
+                    <p><strong>Silakan registrasi terlebih dahulu!</strong></p>
+                `,
+                confirmButtonText: '👤 Daftar Sekarang',
+                confirmButtonColor: '#007bff'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = "{{ url_for('register_user') }}";
                 }
-            } catch (error) {
-                console.error('Error checking students:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Tidak dapat mengecek data siswa. Coba lagi nanti.',
-                    confirmButtonColor: '#dc3545'
-                });
-            }
+            });
+        } else {
+            // kalau sudah terdaftar → masuk ke absensi
+            window.location.href = "{{ url_for('absen_harian') }}";
+        }
+    } catch (err) {
+        console.error(err);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Registrasi Sebelum Absen! .'
         });
+    }
+});
     </script>
 </body>
 </html>

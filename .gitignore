@@ -1,0 +1,40 @@
+# =================== IGNORE FILES ===================
+
+# Environment variables
+.env
+.env.*
+
+# Python cache / compiled
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+env/
+
+# Logs
+*.log
+logs/
+
+# Databases
+*.db
+*.sqlite3
+
+# Uploads (user-generated files)
+uploads/
+
+# Face dataset (kalau ada data wajah tersimpan)
+faces/
+
+# Flask instance folder
+instance/
+
+# IDE/editor settings
+.vscode/
+.idea/
+
+# System files
+.DS_Store
+Thumbs.db

@@ -1,25 +1,38 @@
-blinker==1.9.0
-charset-normalizer==3.4.3
-click==8.3.0
-colorama==0.4.6
-dlib-bin
-face_recognition==1.3.0
-face_recognition_models==0.3.0
-itsdangerous==2.2.0
-Jinja2==3.1.6
-MarkupSafe==3.0.2
-numpy==2.2.6
-opencv-contrib-python==4.12.0.88
-opencv-python==4.12.0.88
-openpyxl==3.1.5
-pandas==2.3.2
-pillow==11.3.0
-python-dateutil==2.9.0.post0
-pytz==2025.2
-reportlab==4.4.4
-six==1.17.0
-tzdata==2025.2
-Werkzeug==3.1.3
+# =================== PYTHON DEPENDENCIES ===================
+
+# Flask Core
+Flask==3.0.0
+Werkzeug==3.0.1
+
+# Database
+pandas==2.1.4
+
+# Face Recognition
+face-recognition==1.3.0
+dlib==19.24.2
+numpy==1.24.3
+
+# PDF Generation
+reportlab==4.0.7
+
+# Excel Support
+openpyxl==3.1.2
+
+# Environment Variables
 python-dotenv==1.0.0
-flask
-gunicorn
+
+# Security & Rate Limiting
+Flask-Limiter==3.5.0
+Flask-WTF==1.2.1
+
+# Logging
+python-json-logger==2.0.7
+
+# Pillow (Image Processing)
+Pillow==10.1.0
+
+# Gunicorn (Production Server)
+gunicorn==21.2.0
+
+# APScheduler (Background Tasks)
+APScheduler==3.10.4

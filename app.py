@@ -16,6 +16,7 @@ import secrets
 import os
 import numpy as np
 
+
 app = Flask(__name__)
 
 # ============= KONFIGURASI KEAMANAN =============
