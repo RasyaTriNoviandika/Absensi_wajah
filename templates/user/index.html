@@ -64,132 +64,123 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Flash Messages -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-        <div class="flash-messages">
-            {% for category, message in messages %}
-            <div class="flash-message flash-{{ category }}">
-                {{ message }}
-                <button class="flash-close" onclick="this.parentElement.remove()">&times;</button>
-            </div>
-            {% endfor %}
+   
+<div class="container">
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flash-messages">
+        {% for category, message in messages %}
+        <div class="flash-message flash-{{ category }}">
+            {{ message }}
+            <button class="flash-close" onclick="this.parentElement.remove()">&times;</button>
         </div>
-        {% endif %}
-        {% endwith %}
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
 
-        <div class="header">
-            <div class="logo">
-    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo SMKN 9" style="width:80px; height:auto;">
-</div>
-            <h1>Absensi Wajah</h1>
-            <p class="subtitle">Sistem Absensi Wajah</p>
-            <p class="school-name">SMKN 9 KOTA BEKASI</p>
+    <div class="header">
+        <div class="logo">
+            <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo SMKN 9" style="width:80px; height:auto;">
         </div>
-
-        <div class="options">
-            <button id="absenBtn" class="option-btn primary-btn">
-                <span class="icon">📸</span>
-                <span>Absen Sekarang</span>
-            </button>
-
-            <a href="{{ url_for('register_user') }}" class="option-btn secondary-btn">
-                <span class="icon">👤</span>
-                <span>Daftar Siswa Baru</span>
-            </a>
-
-            <a href="{{ url_for('absensi_user') }}" class="option-btn secondary-btn">
-                <span class="icon">📋</span>
-                <span>Lihat Data Absensi</span>
-            </a>
-        </div>
-
-        <div class="admin-link">
-            <a href="{{ url_for('admin_login') }}">🔐 Login Admin/Guru</a>
-        </div>
+        <h1>Absensi Wajah</h1>
+        <p class="subtitle">Sistem Absensi Wajah</p>
+        <p class="school-name">SMKN 9 KOTA BEKASI</p>
     </div>
 
-    <script>
-        // Auto-hide flash messages setelah 5 detik
-        setTimeout(function() {
-            const flashMessages = document.querySelectorAll('.flash-message');
-            flashMessages.forEach(function(msg) {
-                msg.style.transition = 'opacity 0.5s';
-                msg.style.opacity = '0';
-                setTimeout(() => msg.remove(), 500);
-            });
-        }, 5000);
+<!-- Tombol Absen -->
+<a href="{{ url_for('absen_harian') }}" class="option-btn primary-btn">
+    <span class="icon">📸</span>
+    <span>Absen Sekarang</span>
+</a>
 
-        // Validasi absen - cek apakah sudah ada siswa terdaftar
-        document.getElementById('absenBtn').addEventListener('click', async function () {
+
+        <a href="{{ url_for('register_user') }}" class="option-btn secondary-btn">
+            <span class="icon">👤</span>
+            <span>Daftar Siswa Baru</span>
+        </a>
+
+        <a href="{{ url_for('absensi_user') }}" class="option-btn secondary-btn">
+            <span class="icon">📋</span>
+            <span>Lihat Data Absensi</span>
+        </a>
+    </div>
+
+    <!-- ✅ Login admin/guru taruh di dalam container -->
+    <div class="admin-link">
+        <a href="{{ url_for('admin_login') }}">🔐 Login Admin/Guru</a>
+    </div>
+</div>
+
+   <script>
+document.getElementById("absenBtn").addEventListener("click", async function() {
     try {
-        const check = await fetch('/check_registered');
-        const data = await check.json();
+        // ✅ 1. Cek dulu apakah sudah ada siswa terdaftar
+        let res = await fetch("/check_registered");
+        let data = await res.json();
 
-        if (!data.registered) {
+        if (!data.success) {
             Swal.fire({
-                icon: 'warning',
-                title: 'Belum Terdaftar',
-                html: `<p>Anda belum terdaftar di sistem absensi.</p>
-                       <p><strong>Silakan registrasi terlebih dahulu!</strong></p>`,
-                confirmButtonText: '👤 Daftar Sekarang',
-                confirmButtonColor: '#007bff'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    window.location.href = "{{ url_for('register_user') }}";
-                }
+                icon: "warning",
+                title: "Belum Ada Siswa",
+                text: "Silakan daftar terlebih dahulu.",
+                confirmButtonText: "Daftar Sekarang"
+            }).then(() => {
+                window.location.href = "/register";
             });
             return;
         }
 
-        // 📸 Ambil foto dari kamera
+        // ✅ 2. Ambil foto dari kamera
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        const video = document.createElement('video');
+        const video = document.createElement("video");
         video.srcObject = stream;
         await video.play();
 
-        const canvas = document.createElement('canvas');
+        const canvas = document.createElement("canvas");
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
-        canvas.getContext('2d').drawImage(video, 0, 0);
+        canvas.getContext("2d").drawImage(video, 0, 0);
 
         // stop kamera biar hemat baterai
         stream.getTracks().forEach(track => track.stop());
 
-        // Ambil lokasi 📍
+        // ✅ 3. Ambil lokasi GPS
         navigator.geolocation.getCurrentPosition(async (pos) => {
             const lat = pos.coords.latitude;
             const lng = pos.coords.longitude;
 
             canvas.toBlob(async (blob) => {
                 const formData = new FormData();
-                formData.append('foto', blob, 'absen.jpg');
-                formData.append('lat', lat);
-                formData.append('lng', lng);
+                formData.append("foto", blob, "absen.jpg");
+                formData.append("lat", lat);
+                formData.append("lng", lng);
 
                 try {
-                    const res = await fetch('/absen', { method: 'POST', body: formData });
+                    const res = await fetch("/absen", { method: "POST", body: formData });
                     const result = await res.json();
 
                     if (result.success) {
-                        Swal.fire('✅ Sukses', result.message, 'success');
+                        Swal.fire("✅ Sukses", `${result.nama} berhasil absen!`, "success")
+                            .then(() => window.location.href = result.redirect);
                     } else {
-                        Swal.fire('❌ Gagal', result.message, 'error');
+                        Swal.fire("❌ Gagal", result.message, "error");
                     }
                 } catch (err) {
-                    Swal.fire('⚠️ Error', 'Tidak bisa menghubungi server.', 'error');
+                    Swal.fire("⚠️ Error", "Tidak bisa menghubungi server.", "error");
                 }
-            }, 'image/jpeg', 0.9);
+            }, "image/jpeg", 0.9);
 
         }, () => {
-            Swal.fire('⚠️ Error', 'Lokasi tidak bisa diambil. Aktifkan GPS.', 'error');
+            Swal.fire("⚠️ Error", "Lokasi tidak bisa diambil. Aktifkan GPS.", "error");
         });
 
     } catch (err) {
-        Swal.fire('⚠️ Error', 'Terjadi masalah saat menghubungi server.', 'error');
+        Swal.fire("⚠️ Error", "Terjadi masalah saat memulai absen.", "error");
     }
 });
-    </script>
+</script>
+
 </body>
 </html>

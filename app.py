@@ -17,6 +17,7 @@ import os
 import numpy as np
 
 
+
 app = Flask(__name__)
 
 # ============= KONFIGURASI KEAMANAN =============
@@ -526,23 +527,86 @@ def absen():
         
         return jsonify({"success": False, "message": f"Terjadi kesalahan: {str(e)}"})
 
-@app.route("/absen_harian")
+@app.route("/absen_harian", methods=["GET", "POST"])
 def absen_harian():
-    """Halaman absensi harian - cek dulu apakah ada siswa terdaftar"""
-    
-    # Cek apakah ada siswa yang sudah terdaftar dengan encoding
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-    cur.execute("SELECT COUNT(*) FROM siswa WHERE encoding IS NOT NULL")
-    total_siswa_terdaftar = cur.fetchone()[0]
-    conn.close()
-    
-    # Jika belum ada siswa terdaftar, arahkan ke registrasi
-    if total_siswa_terdaftar == 0:
-        flash("Belum ada siswa yang terdaftar! Silakan daftar terlebih dahulu.", "warning")
-        return redirect(url_for("register_user"))
-    
-    return render_template("user/absen_harian.html")
+    """Halaman absensi harian - GET untuk form, POST untuk proses wajah"""
+
+    if request.method == "GET":
+        # Cek apakah sudah ada siswa terdaftar
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM siswa WHERE encoding IS NOT NULL")
+        total_siswa_terdaftar = cur.fetchone()[0]
+        conn.close()
+
+        if total_siswa_terdaftar == 0:
+            flash("Belum ada siswa yang terdaftar! Silakan daftar terlebih dahulu.", "warning")
+            return redirect(url_for("register_user"))
+
+        return render_template("user/absen_harian.html")
+
+    # ========== Kalau POST ==========
+    file = request.files.get("foto")
+    if not file:
+        return jsonify({"success": False, "message": "Foto tidak ditemukan."})
+
+    # Simpan foto sementara
+    temp_path = os.path.join(UPLOAD_DIR, f"absen_{uuid.uuid4().hex}.jpg")
+    file.save(temp_path)
+
+    try:
+        # Encode wajah
+        img = face_recognition.load_image_file(temp_path)
+        encodings = face_recognition.face_encodings(img)
+        os.remove(temp_path)
+
+        if not encodings:
+            return jsonify({"success": False, "message": "Wajah tidak terdeteksi!"})
+
+        encoding = encodings[0]
+
+        # Bandingkan dengan semua siswa
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+        cur.execute("SELECT id, nama, kelas, jurusan, encoding FROM siswa WHERE encoding IS NOT NULL")
+        siswa_list = cur.fetchall()
+        conn.close()
+
+        cocok = None
+        for s in siswa_list:
+            db_encoding = np.array(eval(s[4]))  # kalau encoding disimpan pakai str(list)
+            distance = face_recognition.face_distance([db_encoding], encoding)[0]
+
+            if distance < 0.45:  # threshold
+                cocok = {
+                    "id": s[0],
+                    "nama": s[1],
+                    "kelas": s[2],
+                    "jurusan": s[3]
+                }
+                break
+
+        if cocok:
+            # Simpan absensi
+            conn = sqlite3.connect(DB_NAME)
+            cur = conn.cursor()
+            cur.execute("INSERT INTO absensi (siswa_id, waktu) VALUES (?, datetime('now'))", (cocok["id"],))
+            conn.commit()
+            conn.close()
+
+            return jsonify({
+                "success": True,
+                "message": f"✅ Absensi berhasil: {cocok['nama']} ({cocok['kelas']} - {cocok['jurusan']})",
+                "nama": cocok["nama"],
+                "kelas": cocok["kelas"],
+                "jurusan": cocok["jurusan"]
+            })
+        else:
+            return jsonify({"success": False, "message": "❌ Wajah tidak dikenali!"})
+
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Error saat absensi: {str(e)}"})
+
 
 @app.route("/check_students")
 def check_students():
@@ -556,6 +620,20 @@ def check_students():
     return jsonify({
         "total_students": total_students
     })
+
+@app.route("/check_registered")
+def check_registered():
+    conn = sqlite3.connect("database.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM siswa")
+    count = cursor.fetchone()[0]
+    conn.close()
+
+    if count > 0:
+        return jsonify({"success": True})
+    else:
+        return jsonify({"success": False})
+
 
 @app.route("/absensi")
 def absensi_user():
