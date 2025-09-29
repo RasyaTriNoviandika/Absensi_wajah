@@ -1,5 +1,3 @@
-# =================== PYTHON DEPENDENCIES ===================
-
 # Flask Core
 Flask==3.0.0
 Werkzeug==3.0.1
@@ -7,9 +5,9 @@ Werkzeug==3.0.1
 # Database
 pandas==2.1.4
 
-# Face Recognition
+# Face Recognition (pakai binary biar nggak compile)
 face-recognition==1.3.0
-dlib==19.24.2
+dlib-binary==19.24.2
 numpy==1.24.3
 
 # PDF Generation
