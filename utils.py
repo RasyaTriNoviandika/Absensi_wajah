@@ -11,6 +11,7 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in Config.ALLOWED_EXTENSIONS
 
+# Ganti fungsi validate_file_upload di utils.py
 def validate_file_upload(file):
     """Validate uploaded file comprehensively"""
     errors = []
@@ -19,7 +20,7 @@ def validate_file_upload(file):
         errors.append("File tidak boleh kosong")
         return False, errors
     
-    # Check filename
+    # Check filename extension
     if not allowed_file(file.filename):
         errors.append(f"Format file tidak didukung. Gunakan: {', '.join(Config.ALLOWED_EXTENSIONS)}")
     
@@ -31,16 +32,6 @@ def validate_file_upload(file):
     if file_size > Config.MAX_FILE_SIZE:
         max_mb = Config.MAX_FILE_SIZE / (1024 * 1024)
         errors.append(f"Ukuran file terlalu besar. Maksimal {max_mb:.1f}MB")
-    
-    # Check MIME type (more secure than extension)
-    try:
-        mime = magic.from_buffer(file.read(1024), mime=True)
-        file.seek(0)
-        allowed_mimes = ['image/jpeg', 'image/jpg', 'image/png']
-        if mime not in allowed_mimes:
-            errors.append(f"Tipe file tidak valid: {mime}")
-    except Exception as e:
-        errors.append(f"Tidak dapat memvalidasi tipe file: {str(e)}")
     
     return len(errors) == 0, errors
 

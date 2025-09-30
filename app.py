@@ -15,10 +15,12 @@ import ast
 import secrets
 import os
 import numpy as np
-
-
+from services.location_service import dalam_radius
+from services.face_service import encode_wajah, bandingkan_wajah
+from config import get_config
 
 app = Flask(__name__)
+app.config.from_object(get_config())
 
 # ============= KONFIGURASI KEAMANAN =============
 app.config['SECRET_KEY'] = secrets.token_hex(16)
@@ -449,7 +451,6 @@ def potret_user():
 
 @app.route("/absen", methods=["POST"])
 def absen():
-    """Proses absensi siswa"""
     try:
         file = request.files["foto"]
         lat = float(request.form["lat"])
@@ -467,14 +468,16 @@ def absen():
         conn.close()
 
         school_lat, school_lng, radius = row
-        jarak = hitung_jarak(lat, lng, school_lat, school_lng)
 
-        # Perbaikan logika status yang lebih jelas
-        if jarak <= radius:
+        # ✅ pakai service location
+        valid, jarak = dalam_radius(lat, lng, school_lat, school_lng, radius)
+
+        if valid:
             status = "HADIR"
         else:
             status = f"TERLAMBAT/DILUAR AREA ({jarak:.0f}m dari sekolah)"
 
+        # ✅ pakai service face
         siswa = cari_siswa_dengan_wajah(filepath)
 
         # Hapus file temporary
@@ -521,10 +524,8 @@ def absen():
         })
 
     except Exception as e:
-        # Hapus file jika ada error
         if 'filepath' in locals() and os.path.exists(filepath):
             os.remove(filepath)
-        
         return jsonify({"success": False, "message": f"Terjadi kesalahan: {str(e)}"})
 
 @app.route("/absen_harian", methods=["GET", "POST"])
@@ -555,15 +556,12 @@ def absen_harian():
     file.save(temp_path)
 
     try:
-        # Encode wajah
-        img = face_recognition.load_image_file(temp_path)
-        encodings = face_recognition.face_encodings(img)
+        # ✅ pakai service encode
+        encoding = encode_wajah(temp_path)
         os.remove(temp_path)
 
-        if not encodings:
+        if encoding is None:
             return jsonify({"success": False, "message": "Wajah tidak terdeteksi!"})
-
-        encoding = encodings[0]
 
         # Bandingkan dengan semua siswa
         conn = sqlite3.connect(DB_NAME)
@@ -574,10 +572,8 @@ def absen_harian():
 
         cocok = None
         for s in siswa_list:
-            db_encoding = np.array(eval(s[4]))  # kalau encoding disimpan pakai str(list)
-            distance = face_recognition.face_distance([db_encoding], encoding)[0]
-
-            if distance < 0.45:  # threshold
+            db_encoding = ast.literal_eval(s[4])  # ✅ aman, ganti eval → literal_eval
+            if bandingkan_wajah(db_encoding, encoding, tolerance=0.45):
                 cocok = {
                     "id": s[0],
                     "nama": s[1],
@@ -606,6 +602,7 @@ def absen_harian():
 
     except Exception as e:
         return jsonify({"success": False, "message": f"Error saat absensi: {str(e)}"})
+
 
 
 @app.route("/check_students")

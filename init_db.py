@@ -27,6 +27,7 @@ def init_db():
             jurusan TEXT,
             latitude REAL,
             longitude REAL,
+            lokasi TEXT,
             status TEXT,
             waktu TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
