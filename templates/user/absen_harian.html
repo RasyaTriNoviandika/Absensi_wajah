@@ -102,18 +102,26 @@
 
     // Inisialisasi sistem
     window.addEventListener("load", async () => {
-      try {
-        userLocation = await getLocation();
-        console.log("✅ Lokasi:", userLocation);
-        captureBtn.disabled = false;
-        captureBtn.textContent = "📸 Ambil Foto & Absen";
-      } catch(e) {
-        console.error(e);
-        captureBtn.textContent = "GPS Tidak Tersedia";
-        Swal.fire("GPS Error", e, "warning")
-          .then(() => window.location.href="{{ url_for('index') }}");
-      }
-    });
+  try {
+    userLocation = await getLocation();
+    console.log("✅ Lokasi:", userLocation);
+    captureBtn.disabled = false;
+    captureBtn.textContent = "📸 Ambil Foto & Absen";
+  } catch (e) {
+    console.error(e);
+    captureBtn.textContent = "GPS Tidak Tersedia";
+    Swal.fire({
+      icon: "warning",
+      title: "Lokasi Tidak Aktif",
+      html: `
+        Aplikasi ini memerlukan akses lokasi agar absensi bisa berjalan.<br><br>
+        👉 Silakan aktifkan GPS / Lokasi di perangkat Anda, lalu klik "Coba Lagi".
+      `,
+      confirmButtonText: "🔄 Coba Lagi",
+      confirmButtonColor: "#007bff"
+    }).then(() => window.location.reload());
+  }
+});
 
     // Tombol Absen
     captureBtn.onclick = async () => {
