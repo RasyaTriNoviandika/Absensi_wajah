@@ -67,140 +67,157 @@
   </div>
 
   <script>
-    const video = document.getElementById("video");
-    const canvas = document.getElementById("canvas");
-    const context = canvas.getContext("2d");
-    const captureBtn = document.getElementById("capture");
-    let userLocation = null;
+  const video = document.getElementById("video");
+  const canvas = document.getElementById("canvas");
+  const context = canvas.getContext("2d");
+  const captureBtn = document.getElementById("capture");
+  let userLocation = null;
 
-    // Aktifkan kamera
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
-      .then(stream => {
-        video.srcObject = stream;
-        console.log("✅ Kamera aktif");
-      })
-      .catch(err => {
-        console.error("❌ Kamera error:", err);
-        Swal.fire("Kamera Error", "Tidak bisa mengakses kamera. Periksa izin browser.", "error")
-          .then(() => window.location.href="{{ url_for('index') }}");
-      });
+  // Aktifkan kamera
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+    .then(stream => {
+      video.srcObject = stream;
+      console.log("✅ Kamera aktif");
+    })
+    .catch(err => {
+      console.error("❌ Kamera error:", err);
+      Swal.fire("Kamera Error", "Tidak bisa mengakses kamera. Periksa izin browser.", "error")
+        .then(() => window.location.href="{{ url_for('index') }}");
+    });
 
-    // Ambil lokasi GPS
-    async function getLocation() {
-      return new Promise((resolve, reject) => {
-        if (!navigator.geolocation) return reject("Browser tidak mendukung GPS.");
-        navigator.geolocation.getCurrentPosition(
-          pos => resolve({
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude
-          }),
-          err => reject("GPS error: " + err.message),
-          { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
-        );
+  // Ambil lokasi GPS
+  async function getLocation() {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) return reject("Browser tidak mendukung GPS.");
+      navigator.geolocation.getCurrentPosition(
+        pos => resolve({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude
+        }),
+        err => {
+          if (err.code === 1) reject("Izin lokasi ditolak.");
+          else if (err.code === 2) reject("Lokasi tidak tersedia.");
+          else if (err.code === 3) reject("Timeout saat mengambil lokasi.");
+          else reject("GPS error: " + err.message);
+        },
+        { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 }
+      );
+    });
+  }
+
+  // Inisialisasi sistem
+  window.addEventListener("load", async () => {
+    try {
+      userLocation = await getLocation();
+      console.log("✅ Lokasi:", userLocation);
+      captureBtn.disabled = false;
+      captureBtn.textContent = "📸 Ambil Foto & Absen";
+    } catch (e) {
+      console.error(e);
+      captureBtn.textContent = "GPS Tidak Tersedia";
+      Swal.fire({
+        icon: "warning",
+        title: "📸 Lokasi Tidak Aktif",
+        html: `
+          Aplikasi ini memerlukan akses lokasi agar absensi bisa berjalan.<br><br>
+          👉 Silakan aktifkan GPS / Lokasi di perangkat Anda, lalu klik "Coba Lagi".
+        `,
+        confirmButtonText: "🔄 Coba Lagi",
+        confirmButtonColor: "#007bff"
+      }).then(async () => {
+        try {
+          userLocation = await getLocation();
+          if (userLocation) {
+            captureBtn.disabled = false;
+            captureBtn.textContent = "📸 Ambil Foto & Absen";
+            Swal.fire("✅ Lokasi Aktif", "GPS berhasil diaktifkan, silakan lanjutkan absensi.", "success");
+          }
+        } catch (err) {
+          console.error(err);
+          Swal.fire("⚠️ Masih Belum Bisa", "Pastikan GPS benar-benar aktif lalu coba lagi.", "error");
+        }
       });
     }
+  });
 
-    // Inisialisasi sistem
-    window.addEventListener("load", async () => {
-  try {
-    userLocation = await getLocation();
-    console.log("✅ Lokasi:", userLocation);
-    captureBtn.disabled = false;
-    captureBtn.textContent = "📸 Ambil Foto & Absen";
-  } catch (e) {
-    console.error(e);
-    captureBtn.textContent = "GPS Tidak Tersedia";
+  // Tombol Absen
+  captureBtn.onclick = async () => {
+    if (!userLocation) {
+      return Swal.fire("GPS Error", "Lokasi belum tersedia, coba lagi.", "error");
+    }
+
+    captureBtn.disabled = true;
+    captureBtn.textContent = "⏳ Memproses...";
+
     Swal.fire({
-      icon: "warning",
-      title: "Lokasi Tidak Aktif",
-      html: `
-        Aplikasi ini memerlukan akses lokasi agar absensi bisa berjalan.<br><br>
-        👉 Silakan aktifkan GPS / Lokasi di perangkat Anda, lalu klik "Coba Lagi".
-      `,
-      confirmButtonText: "🔄 Coba Lagi",
-      confirmButtonColor: "#007bff"
-    }).then(() => window.location.reload());
-  }
-});
+      title: "Sedang memproses...",
+      html: "Mendeteksi wajah & memvalidasi lokasi...",
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
 
-    // Tombol Absen
-    captureBtn.onclick = async () => {
-      if (!userLocation) {
-        return Swal.fire("GPS Error", "Lokasi belum tersedia, coba lagi.", "error");
-      }
+    try {
+      // Ambil frame dari video
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      captureBtn.disabled = true;
-      captureBtn.textContent = "⏳ Memproses...";
+      // Konversi ke Blob
+      canvas.toBlob(async blob => {
+        const formData = new FormData();
+        formData.append("foto", blob, "absen.jpg");
+        formData.append("lat", userLocation.lat);
+        formData.append("lng", userLocation.lng);
 
-      Swal.fire({
-        title: "Sedang memproses...",
-        html: "Mendeteksi wajah & memvalidasi lokasi...",
-        allowOutsideClick: false,
-        didOpen: () => Swal.showLoading()
-      });
+        try {
+          const res = await fetch("/absen", { method: "POST", body: formData });
+          const data = await res.json();
 
-      try {
-        // Ambil frame dari video
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        // Konversi ke Blob
-        canvas.toBlob(async blob => {
-          const formData = new FormData();
-          formData.append("foto", blob, "absen.jpg");
-          formData.append("lat", userLocation.lat);
-          formData.append("lng", userLocation.lng);
-
-          try {
-            const res = await fetch("/absen", { method: "POST", body: formData });
-            const data = await res.json();
-
-            if (data.success) {
-              Swal.fire({
-                icon: "success",
-                title: "Absensi Berhasil! ✅",
-                html: `
-                  <div style="text-align: left; background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;">
-                    <p><strong>📝 Nama:</strong> ${data.nama}</p>
-                    <p><strong>🏫 Kelas:</strong> ${data.kelas}</p>
-                    <p><strong>📚 Jurusan:</strong> ${data.jurusan}</p>
-                    <p><strong>✅ Status:</strong> <span style="background:#28a745;color:#fff;padding:4px 8px;border-radius:4px;font-weight:600;">${data.status}</span></p>
-                  </div>
-                `,
-                confirmButtonText: "📋 Lihat Data Absensi",
-                confirmButtonColor: "#007bff"
-              }).then(() => window.location.href = data.redirect);
-            } else {
-              Swal.fire({
-                icon: "error",
-                title: "Absensi Gagal ❌",
-                text: data.message || "Coba lagi dalam beberapa saat.",
-                confirmButtonText: "🔄 Coba Lagi",
-                confirmButtonColor: "#dc3545"
-              });
-            }
-          } catch(err) {
-            console.error(err);
+          if (data.success) {
+            Swal.fire({
+              icon: "success",
+              title: "Absensi Berhasil! ✅",
+              html: `
+                <div style="text-align: left; background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                  <p><strong>📝 Nama:</strong> ${data.nama}</p>
+                  <p><strong>🏫 Kelas:</strong> ${data.kelas}</p>
+                  <p><strong>📚 Jurusan:</strong> ${data.jurusan}</p>
+                  <p><strong>✅ Status:</strong> <span style="background:#28a745;color:#fff;padding:4px 8px;border-radius:4px;font-weight:600;">${data.status}</span></p>
+                </div>
+              `,
+              confirmButtonText: "📋 Lihat Data Absensi",
+              confirmButtonColor: "#007bff"
+            }).then(() => window.location.href = data.redirect);
+          } else {
             Swal.fire({
               icon: "error",
-              title: "Koneksi Bermasalah",
-              text: "Tidak dapat mengirim data ke server.",
+              title: "Absensi Gagal ❌",
+              text: data.message || "Coba lagi dalam beberapa saat.",
+              confirmButtonText: "🔄 Coba Lagi",
               confirmButtonColor: "#dc3545"
             });
           }
-        }, "image/jpeg", 0.9);
+        } catch(err) {
+          console.error(err);
+          Swal.fire({
+            icon: "error",
+            title: "Koneksi Bermasalah",
+            text: "Tidak dapat mengirim data ke server.",
+            confirmButtonColor: "#dc3545"
+          });
+        }
+      }, "image/jpeg", 0.9);
 
-      } catch(err) {
-        console.error("Capture error:", err);
-        Swal.fire("Error Kamera", "Gagal mengambil foto dari kamera.", "error");
-      } finally {
-        setTimeout(() => {
-          captureBtn.disabled = false;
-          captureBtn.textContent = "📸 Ambil Foto & Absen";
-        }, 3000);
-      }
-    };
-  </script>
+    } catch(err) {
+      console.error("Capture error:", err);
+      Swal.fire("Error Kamera", "Gagal mengambil foto dari kamera.", "error");
+    } finally {
+      setTimeout(() => {
+        captureBtn.disabled = false;
+        captureBtn.textContent = "📸 Ambil Foto & Absen";
+      }, 3000);
+    }
+  };
+</script>
 </body>
 </html>
