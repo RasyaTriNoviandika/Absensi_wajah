@@ -133,6 +133,42 @@ def buat_tabel():
     conn.commit()
     conn.close()
 
+def auto_migrate_database():
+    """Auto-migrate database schema untuk kolom pulang"""
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+        
+        # Cek kolom yang ada
+        cur.execute("PRAGMA table_info(absensi)")
+        columns = [col[1] for col in cur.fetchall()]
+        
+        print(f"📋 Kolom absensi saat ini: {columns}")
+        
+        # Tambah kolom jika belum ada
+        if 'waktu_pulang' not in columns:
+            cur.execute("ALTER TABLE absensi ADD COLUMN waktu_pulang TIMESTAMP")
+            print("✅ Kolom 'waktu_pulang' ditambahkan")
+        
+        if 'status_pulang' not in columns:
+            cur.execute("ALTER TABLE absensi ADD COLUMN status_pulang TEXT")
+            print("✅ Kolom 'status_pulang' ditambahkan")
+        
+        if 'latitude_pulang' not in columns:
+            cur.execute("ALTER TABLE absensi ADD COLUMN latitude_pulang REAL")
+            print("✅ Kolom 'latitude_pulang' ditambahkan")
+        
+        if 'longitude_pulang' not in columns:
+            cur.execute("ALTER TABLE absensi ADD COLUMN longitude_pulang REAL")
+            print("✅ Kolom 'longitude_pulang' ditambahkan")
+        
+        conn.commit()
+        conn.close()
+        print("🎉 Database migration selesai!")
+        
+    except Exception as e:
+        print(f"❌ Error saat migration: {e}")
+        
 def cek_kolom_absensi_pulang():
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
@@ -1019,44 +1055,64 @@ def admin_get_area():
         return jsonify({"lat": SCHOOL_LAT, "lon": SCHOOL_LNG, "radius": RADIUS})
 
 # Update route /admin/absensi_map di app.py
-
 @app.route("/admin/absensi_map")
 @login_required
 def admin_absensi_map():
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-    
-    # Query dengan COALESCE untuk handle kolom yang mungkin belum ada
-    cur.execute("""
-        SELECT nama, kelas, jurusan, status, waktu, latitude, longitude,
-               COALESCE(status_pulang, '') as status_pulang, 
-               COALESCE(waktu_pulang, '') as waktu_pulang, 
-               COALESCE(latitude_pulang, 0) as latitude_pulang, 
-               COALESCE(longitude_pulang, 0) as longitude_pulang
-        FROM absensi
-        ORDER BY waktu DESC
-    """)
-    absensi = cur.fetchall()
-    conn.close()
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+        
+        # Cek dulu kolom apa saja yang ada
+        cur.execute("PRAGMA table_info(absensi)")
+        columns = [col[1] for col in cur.fetchall()]
+        
+        # Query berdasarkan kolom yang tersedia
+        if all(col in columns for col in ['status_pulang', 'waktu_pulang', 'latitude_pulang', 'longitude_pulang']):
+            # Jika kolom pulang sudah ada
+            cur.execute("""
+                SELECT nama, kelas, jurusan, status, waktu, latitude, longitude,
+                       COALESCE(status_pulang, '') as status_pulang, 
+                       COALESCE(waktu_pulang, '') as waktu_pulang, 
+                       COALESCE(latitude_pulang, 0) as latitude_pulang, 
+                       COALESCE(longitude_pulang, 0) as longitude_pulang
+                FROM absensi
+                ORDER BY waktu DESC
+            """)
+        else:
+            # Fallback jika kolom pulang belum ada
+            cur.execute("""
+                SELECT nama, kelas, jurusan, status, waktu, latitude, longitude,
+                       '' as status_pulang, 
+                       '' as waktu_pulang, 
+                       0 as latitude_pulang, 
+                       0 as longitude_pulang
+                FROM absensi
+                ORDER BY waktu DESC
+            """)
+        
+        absensi = cur.fetchall()
+        
+        # Ambil koordinat sekolah dari settings
+        cur.execute("SELECT latitude, longitude, radius FROM settings WHERE id=1")
+        row = cur.fetchone()
+        conn.close()
+        
+        school_lat = row[0] if row else SCHOOL_LAT
+        school_lng = row[1] if row else SCHOOL_LNG
+        school_radius = row[2] if row else RADIUS
 
-    # Ambil koordinat sekolah dari settings
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-    cur.execute("SELECT latitude, longitude, radius FROM settings WHERE id=1")
-    row = cur.fetchone()
-    conn.close()
-    
-    school_lat = row[0] if row else SCHOOL_LAT
-    school_lng = row[1] if row else SCHOOL_LNG
-    school_radius = row[2] if row else RADIUS
-
-    return render_template(
-        "admin/absensi_map.html",
-        absensi=absensi,
-        SCHOOL_LAT=school_lat,
-        SCHOOL_LNG=school_lng,
-        RADIUS=school_radius
-    )
+        return render_template(
+            "admin/absensi_map.html",
+            absensi=absensi,
+            SCHOOL_LAT=school_lat,
+            SCHOOL_LNG=school_lng,
+            RADIUS=school_radius
+        )
+        
+    except Exception as e:
+        print(f"❌ Error di absensi_map: {e}")
+        flash(f"Error memuat data absensi: {str(e)}", "error")
+        return redirect(url_for("admin_index"))
 
 @app.route("/admin/export/excel")
 @login_required
@@ -1212,6 +1268,7 @@ def admin_settings():
 def init_app():
     """Initialize database and create default admin"""
     buat_tabel()
+    auto_migrate_database()  # ← TAMBAHKAN INI
     buat_admin_default()
 
 # Initialize saat import
@@ -1219,6 +1276,21 @@ try:
     init_app()
 except Exception as e:
     print(f"Warning: Database initialization failed: {e}")
+
+# ============= ERROR HANDLERS =============
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('404.html'), 404
+
+@app.errorhandler(500)
+def internal_server_error(e):
+    app.logger.error(f"Internal Server Error: {e}")
+    return render_template('500.html'), 500
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    app.logger.error(f"Unhandled Exception: {e}")
+    return render_template('500.html'), 500
 
 # ---------------- Main ----------------
 if __name__ == "__main__":
