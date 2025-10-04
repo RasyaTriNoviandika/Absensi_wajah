@@ -37,6 +37,10 @@ UPLOAD_DIR = "uploads"
 # Buat folder upload jika belum ada
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+# Face Recognition Thresholds
+FACE_RECOGNITION_THRESHOLD = 0.45  # Untuk absensi (0.4-0.5 recommended)
+FACE_DUPLICATE_THRESHOLD = 0.4     # Untuk deteksi duplikasi (lebih ketat)
+
 # ============= FUNGSI KEAMANAN =============
 def login_required(f):
     """Decorator untuk memastikan admin sudah login"""
@@ -217,7 +221,7 @@ def get_all_siswa():
     return rows
 
 def cari_siswa_dengan_wajah(file_path):
-    """Cocokkan wajah dengan data siswa - Version dengan debug info"""
+    """Cocokkan wajah dengan data siswa - Version dengan algoritma yang lebih akurat"""
     try:
         print(f"🔍 Memproses file: {file_path}")
         
@@ -247,6 +251,10 @@ def cari_siswa_dengan_wajah(file_path):
             print("❌ Tidak ada siswa terdaftar dalam database")
             return None
 
+        # ============= ALGORITMA BARU: CARI YANG PALING MIRIP =============
+        best_match = None
+        best_distance = float('inf')
+        
         # Bandingkan dengan setiap siswa
         for i, (sid, nama, kelas, jurusan, encoding_str) in enumerate(siswa_list):
             if not encoding_str:
@@ -255,34 +263,50 @@ def cari_siswa_dengan_wajah(file_path):
                 
             try:
                 encoding_siswa = ast.literal_eval(encoding_str)
-                print(f"🔄 Membandingkan dengan {nama}...")
                 
-                # Coba beberapa tolerance level
-                tolerances = [0.4, 0.5, 0.6]
-                for tolerance in tolerances:
-                    result = face_recognition.compare_faces([encoding_siswa], wajah_absen, tolerance=tolerance)
-                    distance = face_recognition.face_distance([encoding_siswa], wajah_absen)[0]
-                    
-                    print(f"   Tolerance {tolerance}: Match={result[0]}, Distance={distance:.3f}")
-                    
-                    if result[0]:
-                        print(f"✅ MATCH FOUND! {nama} (Distance: {distance:.3f})")
-                        return {"id": sid, "nama": nama, "kelas": kelas, "jurusan": jurusan}
+                # Hitung jarak (distance) - semakin kecil semakin mirip
+                distance = face_recognition.face_distance([encoding_siswa], wajah_absen)[0]
+                
+                print(f"🔄 {i+1}. {nama}: Distance = {distance:.4f}")
+                
+                # Simpan yang paling mirip
+                if distance < best_distance:
+                    best_distance = distance
+                    best_match = {
+                        "id": sid,
+                        "nama": nama,
+                        "kelas": kelas,
+                        "jurusan": jurusan,
+                        "distance": distance
+                    }
                         
             except Exception as e:
                 print(f"❌ Error parsing encoding untuk {nama}: {e}")
                 continue
 
-        print("❌ Tidak ada wajah yang cocok ditemukan")
-        return None
+        # ============= VALIDASI DENGAN THRESHOLD KETAT =============
+        # Threshold: 0.4 = sangat ketat, 0.6 = normal
+        THRESHOLD = 0.45  # Ubah ini jika terlalu ketat/longgar
+        
+        if best_match and best_distance < THRESHOLD:
+            print(f"✅ MATCH FOUND! {best_match['nama']} (Distance: {best_distance:.4f})")
+            return best_match
+        else:
+            if best_match:
+                print(f"❌ Wajah paling mirip: {best_match['nama']} (Distance: {best_distance:.4f})")
+                print(f"⚠️ Namun jarak ({best_distance:.4f}) melebihi threshold ({THRESHOLD})")
+            print("❌ Tidak ada wajah yang cocok dengan confidence tinggi")
+            return None
 
     except Exception as e:
         print(f"❌ Error dalam pencocokan wajah: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 # ============= FUNGSI BARU: CEK DUPLIKASI WAJAH SAAT REGISTRASI =============
 def cek_wajah_sudah_terdaftar(file_path):
-    """Cek apakah wajah sudah pernah terdaftar sebelumnya"""
+    """Cek apakah wajah sudah pernah terdaftar sebelumnya - dengan threshold ketat"""
     try:
         print(f"🔍 Mengecek duplikasi untuk file: {file_path}")
         
@@ -306,6 +330,10 @@ def cek_wajah_sudah_terdaftar(file_path):
 
         print(f"👥 Mengecek terhadap {len(siswa_list)} siswa terdaftar")
 
+        # ============= CARI YANG PALING MIRIP =============
+        best_match = None
+        best_distance = float('inf')
+
         # Bandingkan dengan setiap siswa yang sudah terdaftar
         for sid, nama, kelas, jurusan, encoding_str in siswa_list:
             if not encoding_str:
@@ -314,25 +342,39 @@ def cek_wajah_sudah_terdaftar(file_path):
             try:
                 existing_encoding = ast.literal_eval(encoding_str)
                 
-                # Gunakan tolerance ketat untuk deteksi duplikasi
-                result = face_recognition.compare_faces([existing_encoding], new_face_encoding, tolerance=0.5)
+                # Hitung jarak
                 distance = face_recognition.face_distance([existing_encoding], new_face_encoding)[0]
                 
-                print(f"🔄 Cek duplikasi dengan {nama}: Match={result[0]}, Distance={distance:.3f}")
+                print(f"🔄 Cek duplikasi dengan {nama}: Distance={distance:.4f}")
                 
-                if result[0]:
-                    print(f"⚠️ DUPLIKASI TERDETEKSI! Wajah mirip dengan {nama}")
-                    return {"id": sid, "nama": nama, "kelas": kelas, "jurusan": jurusan}
+                if distance < best_distance:
+                    best_distance = distance
+                    best_match = {
+                        "id": sid,
+                        "nama": nama,
+                        "kelas": kelas,
+                        "jurusan": jurusan,
+                        "distance": distance
+                    }
                         
             except Exception as e:
                 print(f"❌ Error parsing encoding untuk {nama}: {e}")
                 continue
 
-        print("✅ Tidak ada duplikasi, wajah baru dapat didaftarkan")
-        return None
+        # ============= THRESHOLD DUPLIKASI LEBIH KETAT =============
+        DUPLICATE_THRESHOLD = 0.4  # Lebih ketat untuk deteksi duplikasi
+        
+        if best_match and best_distance < DUPLICATE_THRESHOLD:
+            print(f"⚠️ DUPLIKASI TERDETEKSI! Wajah mirip dengan {best_match['nama']} (Distance: {best_distance:.4f})")
+            return best_match
+        else:
+            print(f"✅ Tidak ada duplikasi, wajah baru dapat didaftarkan (Closest distance: {best_distance:.4f})")
+            return None
 
     except Exception as e:
         print(f"❌ Error dalam pengecekan duplikasi: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 # ============= ROUTES LOGIN ADMIN =============
@@ -509,7 +551,7 @@ def potret_user():
 
 @app.route("/absen", methods=["POST"])
 def absen():
-    """Proses absensi siswa"""
+    """Proses absensi siswa dengan logging detail"""
     try:
         file = request.files["foto"]
         lat = float(request.form["lat"])
@@ -518,6 +560,12 @@ def absen():
         filename = f"{uuid.uuid4().hex}.jpg"
         filepath = os.path.join(UPLOAD_DIR, filename)
         file.save(filepath)
+        
+        print(f"\n{'='*50}")
+        print(f"📸 PROSES ABSENSI DIMULAI")
+        print(f"📁 File: {filename}")
+        print(f"📍 Lokasi: {lat}, {lng}")
+        print(f"{'='*50}\n")
 
         # Ambil area absensi dari DB
         conn = sqlite3.connect(DB_NAME)
@@ -528,21 +576,36 @@ def absen():
 
         school_lat, school_lng, radius = row
         jarak = hitung_jarak(lat, lng, school_lat, school_lng)
+        
+        print(f"📏 Jarak dari sekolah: {jarak:.2f} meter")
+        print(f"📏 Radius yang diizinkan: {radius} meter")
 
         # Perbaikan logika status area
         if jarak <= radius:
             status = "HADIR"
+            print(f"✅ Status lokasi: DALAM AREA")
         else:
             status = f"DILUAR AREA ({jarak:.0f}m dari sekolah)"
+            print(f"⚠️ Status lokasi: DILUAR AREA")
 
+        # PENCOCOKAN WAJAH
+        print(f"\n🔍 Memulai pencocokan wajah...")
         siswa = cari_siswa_dengan_wajah(filepath)
 
         # Hapus file temporary
         if os.path.exists(filepath):
             os.remove(filepath)
+            print(f"🗑️ File temporary dihapus")
 
         if not siswa:
-            return jsonify({"success": False, "message": "Wajah tidak dikenali! Pastikan Anda sudah terdaftar."})
+            print(f"\n❌ ABSENSI GAGAL: Wajah tidak dikenali\n")
+            return jsonify({
+                "success": False, 
+                "message": "Wajah tidak dikenali! Pastikan Anda sudah terdaftar dan foto jelas."
+            })
+
+        print(f"\n✅ Wajah dikenali: {siswa['nama']}")
+        print(f"📊 Confidence: {1 - siswa['distance']:.2%}")
 
         # Waktu lokal WIB
         waktu_lokal = datetime.utcnow() + timedelta(hours=7)
@@ -550,19 +613,21 @@ def absen():
         jam_sekarang = waktu_lokal.time()
 
         # ✅ VALIDASI JAM MASUK (misalnya 06:00 - 07:30 WIB)
-      # ✅ VALIDASI JAM MASUK (misalnya 06:00 - 07:30 WIB)
         jam_mulai_masuk = datetime.strptime("06:00", "%H:%M").time()
         jam_akhir_masuk = datetime.strptime("07:30", "%H:%M").time()
 
         if jam_sekarang > jam_akhir_masuk:
             status = "TERLAMBAT"
+            print(f"⏰ Status waktu: TERLAMBAT")
         elif jam_sekarang < jam_mulai_masuk:
+            print(f"⏰ Belum waktunya absen masuk")
             return jsonify({
                 "success": False,
                 "message": f"Absen masuk hanya bisa dilakukan mulai jam 06:00 WIB. Sekarang jam {waktu_lokal.strftime('%H:%M')} WIB."
             })
         else:
             status = "HADIR"
+            print(f"⏰ Status waktu: TEPAT WAKTU")
 
         conn = sqlite3.connect(DB_NAME)
         cur = conn.cursor()
@@ -576,7 +641,11 @@ def absen():
 
         if sudah_absen:
             conn.close()
-            return jsonify({"success": False, "message": f"{siswa['nama']} sudah absen hari ini! Silakan absen besok."})
+            print(f"⚠️ Siswa sudah absen hari ini")
+            return jsonify({
+                "success": False, 
+                "message": f"{siswa['nama']} sudah absen hari ini! Silakan absen besok."
+            })
 
         # Simpan absensi baru
         cur.execute("""
@@ -586,6 +655,9 @@ def absen():
 
         conn.commit()
         conn.close()
+        
+        print(f"\n🎉 ABSENSI BERHASIL DISIMPAN")
+        print(f"{'='*50}\n")
 
         return jsonify({
             "success": True,
@@ -600,6 +672,10 @@ def absen():
         # Hapus file jika ada error
         if 'filepath' in locals() and os.path.exists(filepath):
             os.remove(filepath)
+        
+        print(f"\n❌ ERROR: {e}")
+        import traceback
+        traceback.print_exc()
         
         return jsonify({"success": False, "message": f"Terjadi kesalahan: {str(e)}"})
 

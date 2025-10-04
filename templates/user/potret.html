@@ -37,13 +37,15 @@
     .camera-section {
       margin-bottom:20px;
     }
-    video {
-      width:100%; max-width:350px; border-radius:6px; margin-bottom:15px;
-      border:2px solid #28a745; display:none;
-    }
-    video.active {
-      display:block;
-    }
+   video {
+    width:100%; max-width:350px; border-radius:6px; margin-bottom:15px;
+    border:2px solid #28a745; display:none;
+    transform: scaleX(-1); /* Mirror horizontal */
+    -webkit-transform: scaleX(-1); /* Safari */
+  }
+  video.active {
+    display:block;
+  }
     input[type="file"] {
       width:100%; padding:12px; border:1px solid #ddd;
       border-radius:6px; margin-bottom:15px; background:#f8f9fa;
@@ -153,59 +155,67 @@
     };
 
     // Ambil foto dari kamera
-    captureBtn.onclick = async () => {
-      if (!stream) return;
+  captureBtn.onclick = async () => {
+    if (!stream) return;
 
-      captureBtn.disabled = true;
-      captureBtn.textContent = "📷 Memproses...";
+    captureBtn.disabled = true;
+    captureBtn.textContent = "📷 Memproses...";
 
-      try {
-        // Ambil frame dari video
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    try {
+      // ============= FIX MIRROR SAAT CAPTURE =============
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      
+      // Flip horizontal agar hasil foto normal
+      context.translate(canvas.width, 0);
+      context.scale(-1, 1);
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      // Reset transformasi
+      context.setTransform(1, 0, 0, 1, 0, 0);
+      // ===================================================
 
-        // Konversi ke blob
-        canvas.toBlob(async (blob) => {
-          const formData = new FormData();
-          formData.append('foto', blob, 'foto_wajah.jpg');
+      // Konversi ke blob
+      canvas.toBlob(async (blob) => {
+        const formData = new FormData();
+        formData.append('foto', blob, 'foto_wajah.jpg');
 
-          try {
-            const response = await fetch(window.location.href, {
-              method: 'POST',
-              body: formData
+        try {
+          const response = await fetch(window.location.href, {
+            method: 'POST',
+            body: formData
+          });
+
+          if (response.ok) {
+            Swal.fire({
+              icon: 'success',
+              title: 'Registrasi Berhasil!',
+              text: 'Foto wajah berhasil disimpan. Anda sekarang bisa melakukan absensi.',
+              confirmButtonText: 'OK'
+            }).then(() => {
+              window.location.href = "{{ url_for('index') }}";
             });
-
-            if (response.ok) {
-              Swal.fire({
-                icon: 'success',
-                title: 'Registrasi Berhasil!',
-                text: 'Foto wajah berhasil disimpan. Anda sekarang bisa melakukan absensi.',
-                confirmButtonText: 'OK'
-              }).then(() => {
-                window.location.href = "{{ url_for('index') }}";
-              });
-            } else {
-              const text = await response.text();
-              Swal.fire('Error', 'Gagal menyimpan foto: ' + text, 'error');
-            }
-          } catch(err) {
-            console.error(err);
-            Swal.fire('Error', 'Gagal mengirim foto ke server', 'error');
+          } else {
+            const text = await response.text();
+            Swal.fire('Error', 'Gagal menyimpan foto: ' + text, 'error');
           }
-        }, 'image/jpeg', 0.9);
+        } catch(err) {
+          console.error(err);
+          Swal.fire('Error', 'Gagal mengirim foto ke server', 'error');
+        }
+      }, 'image/jpeg', 0.95);
 
-      } catch(err) {
-        console.error(err);
-        Swal.fire('Error', 'Gagal mengambil foto', 'error');
-      } finally {
-        setTimeout(() => {
-          captureBtn.disabled = false;
-          captureBtn.textContent = "📸 Ambil Foto";
-        }, 2000);
-      }
-    };
-
+    } catch(err) {
+      console.error(err);
+      Swal.fire('Error', 'Gagal mengambil foto', 'error');
+    } finally {
+      setTimeout(() => {
+        captureBtn.disabled = false;
+        captureBtn.textContent = "📸 Ambil Foto";
+      }, 2000);
+    }
+  };
+  
     // Cleanup ketika pindah halaman
     window.addEventListener('beforeunload', () => {
       if (stream) {

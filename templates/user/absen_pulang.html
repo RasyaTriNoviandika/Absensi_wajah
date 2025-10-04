@@ -32,10 +32,12 @@
       margin-bottom:15px; border-left:4px solid #17a2b8;
     }
     .time-info p { color:#0c5460; font-size:14px; margin:0; font-weight:600; }
-    video {
-      width:100%; border-radius:6px; margin-bottom:15px;
-      border:2px solid #28a745; max-width:350px;
-    }
+     video {
+    width:100%; border-radius:6px; margin-bottom:15px;
+    border:2px solid #28a745; max-width:350px;
+    transform: scaleX(-1); /* Mirror horizontal */
+    -webkit-transform: scaleX(-1); /* Safari */
+  }
     button {
       width:100%; padding:14px; border:none;
       border-radius:6px; font-size:16px; font-weight:600;
@@ -145,8 +147,7 @@
     }
   });
 
-  // Tombol Absen Pulang
-  captureBtn.onclick = async () => {
+ captureBtn.onclick = async () => {
     if (!userLocation) {
       return Swal.fire("GPS Error", "Lokasi belum tersedia.", "error");
     }
@@ -162,9 +163,18 @@
     });
 
     try {
+      // ============= FIX MIRROR SAAT CAPTURE =============
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
+      
+      // Flip horizontal agar hasil foto normal
+      context.translate(canvas.width, 0);
+      context.scale(-1, 1);
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      // Reset transformasi
+      context.setTransform(1, 0, 0, 1, 0, 0);
+      // ===================================================
 
       canvas.toBlob(async blob => {
         const formData = new FormData();
@@ -172,38 +182,8 @@
         formData.append("lat", userLocation.lat);
         formData.append("lng", userLocation.lng);
 
-        try {
-          const res = await fetch("/absen_pulang", { method: "POST", body: formData });
-          const data = await res.json();
-
-          if (data.success) {
-            Swal.fire({
-              icon: "success",
-              title: "Absen Pulang Berhasil! 🎉",
-              html: `
-                <div style="text-align:left; background:#f8f9fa; padding:15px; border-radius:8px; margin:10px 0;">
-                  <p><strong>📝 Nama:</strong> ${data.nama}</p>
-                  <p><strong>🏫 Kelas:</strong> ${data.kelas}</p>
-                  <p><strong>📚 Jurusan:</strong> ${data.jurusan}</p>
-                  <p><strong>✅ Status:</strong> <span style="background:#28a745;color:#fff;padding:4px 8px;border-radius:4px;">${data.status}</span></p>
-                  <p><strong>⏰ Waktu:</strong> ${data.waktu} WIB</p>
-                </div>
-              `,
-              confirmButtonText: "📋 Lihat Data",
-              confirmButtonColor: "#28a745"
-            }).then(() => window.location.href = data.redirect);
-          } else {
-            Swal.fire({
-              icon: "error",
-              title: "Absen Pulang Gagal ❌",
-              text: data.message,
-              confirmButtonColor: "#dc3545"
-            });
-          }
-        } catch(err) {
-          Swal.fire("Error", "Tidak dapat mengirim data.", "error");
-        }
-      }, "image/jpeg", 0.9);
+        // ... rest of code ...
+      }, "image/jpeg", 0.95);
 
     } catch(err) {
       Swal.fire("Error Kamera", "Gagal mengambil foto.", "error");

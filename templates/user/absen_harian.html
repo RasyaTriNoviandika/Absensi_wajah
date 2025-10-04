@@ -27,10 +27,16 @@
       margin-bottom:20px; border-left:4px solid #007bff;
     }
     .info-box p { color:#333; font-size:14px; margin:0; }
+    
+    /* ============= FIX MIRROR CAMERA ============= */
     video {
       width:100%; border-radius:6px; margin-bottom:15px;
       border:2px solid #007bff; max-width:350px;
+      transform: scaleX(-1); /* Mirror horizontal */
+      -webkit-transform: scaleX(-1); /* Safari */
     }
+    /* ============================================= */
+    
     button {
       width:100%; padding:14px; border:none;
       border-radius:6px; font-size:16px; font-weight:600;
@@ -157,10 +163,18 @@
     });
 
     try {
-      // Ambil frame dari video
+      // ============= FIX MIRROR SAAT CAPTURE =============
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
+      
+      // Flip horizontal agar hasil foto normal (tidak mirror)
+      context.translate(canvas.width, 0);
+      context.scale(-1, 1);
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      // Reset transformasi
+      context.setTransform(1, 0, 0, 1, 0, 0);
+      // ===================================================
 
       // Konversi ke Blob
       canvas.toBlob(async blob => {
@@ -206,7 +220,7 @@
             confirmButtonColor: "#dc3545"
           });
         }
-      }, "image/jpeg", 0.9);
+      }, "image/jpeg", 0.95);
 
     } catch(err) {
       console.error("Capture error:", err);
