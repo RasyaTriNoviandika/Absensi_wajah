@@ -10,6 +10,204 @@
         * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background:#f5f5f5; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
         .container { background:#fff; border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,0.1); padding:50px 40px; text-align:center; width:100%; max-width:500px; border:1px solid #ddd; }
+        
+        /* ============= TUTORIAL OVERLAY ============= */
+        .tutorial-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .tutorial-overlay.active {
+            display: flex;
+        }
+        
+        .tutorial-card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            animation: slideUp 0.3s ease;
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .tutorial-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .tutorial-icon {
+            font-size: 3rem;
+        }
+        
+        .tutorial-title {
+            font-size: 1.8rem;
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .tutorial-content {
+            text-align: left;
+        }
+        
+        .tutorial-step {
+            display: none;
+        }
+        
+        .tutorial-step.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .step-number {
+            display: inline-block;
+            background: #007bff;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        .step-title {
+            font-size: 1.3rem;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        
+        .step-description {
+            color: #666;
+            line-height: 1.7;
+            font-size: 1rem;
+            margin-bottom: 20px;
+        }
+        
+        .step-image {
+            width: 100%;
+            max-width: 300px;
+            margin: 20px auto;
+            display: block;
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+        }
+        
+        .tutorial-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 25px;
+        }
+        
+        .tutorial-btn {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 15px;
+        }
+        
+        .btn-skip {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-skip:hover {
+            background: #545b62;
+        }
+        
+        .btn-next {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-next:hover {
+            background: #0056b3;
+        }
+        
+        .btn-finish {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-finish:hover {
+            background: #1e7e34;
+        }
+        
+        .tutorial-progress {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 20px;
+        }
+        
+        .progress-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #dee2e6;
+            transition: all 0.3s ease;
+        }
+        
+        .progress-dot.active {
+            background: #007bff;
+            width: 30px;
+            border-radius: 5px;
+        }
+        
+        .dont-show-again {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        
+        .dont-show-again label {
+            cursor: pointer;
+            color: #666;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .dont-show-again input[type="checkbox"] {
+            cursor: pointer;
+        }
+        /* ============================================= */
+        
         .header { margin-bottom:40px; }
         .logo { font-size:4rem; margin-bottom:20px; }
         h1 { color:#333; font-size:2.2rem; font-weight:300; margin-bottom:15px; }
@@ -32,7 +230,6 @@
         .flash-info { background:#d1ecf1; color:#0c5460; border-color:#bee5eb; }
         .flash-warning { background:#fff3cd; color:#856404; border-color:#ffeaa7; }
         
-        /* Close button for flash messages */
         .flash-close {
             position: absolute;
             right: 10px;
@@ -45,6 +242,29 @@
             opacity: 0.7;
         }
         .flash-close:hover { opacity: 1; }
+
+        /* Help Button */
+        .help-button {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #007bff;
+            color: white;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,123,255,0.4);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+        
+        .help-button:hover {
+            background: #0056b3;
+            transform: scale(1.1);
+        }
 
         @media (max-width:600px) {
             body { padding:10px; }
@@ -60,11 +280,147 @@
             .admin-link { margin-top:25px; padding-top:15px; }
             .admin-link a { font-size:0.85rem; }
             .flash-message { font-size:13px; padding:10px 14px; }
+            .tutorial-card { padding: 20px; }
+            .tutorial-title { font-size: 1.5rem; }
+            .help-button { width: 50px; height: 50px; font-size: 20px; bottom: 20px; right: 20px; }
         }
     </style>
 </head>
 <body>
+<!-- ============= TUTORIAL OVERLAY ============= -->
+<div class="tutorial-overlay" id="tutorialOverlay">
+    <div class="tutorial-card">
+        <div class="tutorial-header">
+            <span class="tutorial-icon">📚</span>
+            <h2 class="tutorial-title">Panduan Singkat</h2>
+        </div>
+        
+        <div class="tutorial-content">
+            <!-- Step 1 -->
+            <div class="tutorial-step active" data-step="1">
+                <h3 class="step-title">
+                    <span class="step-number">1</span>
+                    Selamat Datang! 👋
+                </h3>
+                <p class="step-description">
+                    Aplikasi Absensi Wajah SMKN 9 Bekasi menggunakan teknologi pengenalan wajah untuk absensi otomatis. 
+                    <br><br>
+                    <strong>Persyaratan:</strong><br>
+                    ✅ Kamera aktif<br>
+                    ✅ GPS/Lokasi aktif<br>
+                    ✅ Berada di area sekolah
+                </p>
+            </div>
+            
+            <!-- Step 2 -->
+            <div class="tutorial-step" data-step="2">
+                <h3 class="step-title">
+                    <span class="step-number">2</span>
+                    Daftar Sebagai Siswa Baru 📝
+                </h3>
+                <p class="step-description">
+                    <strong>Untuk pengguna baru:</strong>
+                    <br><br>
+                    1️⃣ Klik tombol <strong>"Daftar Siswa Baru"</strong><br>
+                    2️⃣ Isi data: Nama, Kelas, Jurusan<br>
+                    3️⃣ Ambil foto wajah yang jelas<br>
+                    4️⃣ Pastikan hanya ada 1 wajah di foto<br>
+                    <br>
+                    ⚠️ <em>Wajah hanya bisa didaftarkan sekali!</em>
+                </p>
+            </div>
+            
+            <!-- Step 3 -->
+            <div class="tutorial-step" data-step="3">
+                <h3 class="step-title">
+                    <span class="step-number">3</span>
+                    Absen Masuk 📸
+                </h3>
+                <p class="step-description">
+                    <strong>Cara absen masuk:</strong>
+                    <br><br>
+                    1️⃣ Klik tombol <strong>"Absen Sekarang"</strong><br>
+                    2️⃣ Izinkan akses kamera & lokasi<br>
+                    3️⃣ Pastikan wajah terlihat jelas<br>
+                    4️⃣ Klik <strong>"Ambil Foto & Absen"</strong><br>
+                    <br>
+                    ⏰ <strong>Jam absen masuk:</strong> 06:00 - 07:30 WIB<br>
+                    📍 <strong>Harus di area sekolah!</strong>
+                </p>
+            </div>
+            
+            <!-- Step 4 -->
+            <div class="tutorial-step" data-step="4">
+                <h3 class="step-title">
+                    <span class="step-number">4</span>
+                    Absen Pulang 🏃
+                </h3>
+                <p class="step-description">
+                    <strong>Cara absen pulang:</strong>
+                    <br><br>
+                    1️⃣ Klik tombol <strong>"Absen Pulang"</strong><br>
+                    2️⃣ Sama seperti absen masuk<br>
+                    3️⃣ Ambil foto wajah<br>
+                    <br>
+                    ⏰ <strong>Jam absen pulang:</strong> 15:00 - 17:00 WIB<br>
+                    <br>
+                    ⚠️ <em>Harus sudah absen masuk terlebih dahulu!</em>
+                </p>
+            </div>
+            
+            <!-- Step 5 -->
+            <div class="tutorial-step" data-step="5">
+                <h3 class="step-title">
+                    <span class="step-number">5</span>
+                    Tips Agar Absensi Berhasil 💡
+                </h3>
+                <p class="step-description">
+                    ✅ <strong>Pencahayaan cukup</strong> - Jangan terlalu gelap/terang<br>
+                    ✅ <strong>Wajah menghadap kamera</strong> - Jangan miring<br>
+                    ✅ <strong>Jarak ideal</strong> - Tidak terlalu dekat/jauh<br>
+                    ✅ <strong>Lepas masker</strong> - Wajah harus terlihat jelas<br>
+                    ✅ <strong>Di area sekolah</strong> - GPS harus aktif<br>
+                    <br>
+                    ❓ Jika ada masalah, hubungi admin/guru!
+                </p>
+            </div>
+        </div>
+        
+        <div class="tutorial-progress">
+            <div class="progress-dot active"></div>
+            <div class="progress-dot"></div>
+            <div class="progress-dot"></div>
+            <div class="progress-dot"></div>
+            <div class="progress-dot"></div>
+        </div>
+        
+        <div class="tutorial-buttons">
+            <button class="tutorial-btn btn-skip" onclick="skipTutorial()">Lewati</button>
+            <button class="tutorial-btn btn-next" id="nextBtn" onclick="nextStep()">Lanjut</button>
+        </div>
+        
+        <div class="dont-show-again">
+            <label>
+                <input type="checkbox" id="dontShowAgain">
+                Jangan tampilkan lagi
+            </label>
+        </div>
+    </div>
+</div>
+
+<!-- Help Button -->
+<button class="help-button" onclick="showTutorial()" title="Bantuan">❓</button>
+
 <div class="container">
+    <div class="header">
+        <div class="logo">
+            <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo SMKN 9" style="width:80px; height:auto;" onerror="this.style.display='none'">
+        </div>
+        <h1>Absensi Wajah</h1>
+        <p class="subtitle">Sistem Absensi Wajah</p>
+        <p class="school-name">SMKN 9 KOTA BEKASI</p>
+    </div>
+
     <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
@@ -78,16 +434,6 @@
     </div>
     {% endif %}
     {% endwith %}
-
-    <!-- Header -->
-    <div class="header">
-        <div class="logo">
-            <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo SMKN 9" style="width:80px; height:auto;">
-        </div>
-        <h1>Absensi Wajah</h1>
-        <p class="subtitle">Sistem Absensi Wajah</p>
-        <p class="school-name">SMKN 9 KOTA BEKASI</p>
-    </div>
 
     <!-- Tombol utama -->
     <div class="options">
@@ -111,79 +457,130 @@
             <span>Lihat Data Absensi</span>
         </a>
     </div>
-    <!-- Login Admin/Guru (diletakkan di bawah menu dengan pemisah) -->
+    
+    <!-- Login Admin/Guru -->
     <div class="admin-link">
         <a href="{{ url_for('admin_login') }}">🔐 Login Admin/Guru</a>
     </div>
 </div>
-   <script>
-    document.getElementById("absenBtn").addEventListener("click", async function() {
-    try {
-        // ✅ 1. Cek dulu apakah sudah ada siswa terdaftar
-        let res = await fetch("/check_registered");
-        let data = await res.json();
 
-        if (!data.success) {
-            Swal.fire({
-                icon: "warning",
-                title: "Belum Ada Siswa",
-                text: "Silakan daftar terlebih dahulu.",
-                confirmButtonText: "Daftar Sekarang"
-            }).then(() => {
-                window.location.href = "/register";
-            });
+<script>
+    let currentStep = 1;
+    const totalSteps = 5;
+
+    // ============= IMPROVED TUTORIAL LOGIC =============
+    window.addEventListener('load', function() {
+        const tutorialShown = localStorage.getItem('tutorialShown');
+        const sessionActive = sessionStorage.getItem('sessionActive');
+        
+        // Jika tutorial sudah pernah ditutup permanent (localStorage), jangan tampilkan
+        if (tutorialShown === 'permanent') {
             return;
         }
+        
+        // Jika session sudah aktif (user pernah buka index di session ini), jangan tampilkan
+        if (sessionActive === 'true') {
+            return;
+        }
+        
+        // Jika belum ada session, tandai session aktif dan tampilkan tutorial
+        sessionStorage.setItem('sessionActive', 'true');
+        showTutorial();
+    });
 
-        // ✅ 2. Ambil foto dari kamera
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        const video = document.createElement("video");
-        video.srcObject = stream;
-        await video.play();
+    function showTutorial() {
+        currentStep = 1;
+        document.getElementById('tutorialOverlay').classList.add('active');
+        updateStep();
+    }
 
-        const canvas = document.createElement("canvas");
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.getContext("2d").drawImage(video, 0, 0);
+    function nextStep() {
+        if (currentStep < totalSteps) {
+            currentStep++;
+            updateStep();
+        } else {
+            finishTutorial();
+        }
+    }
 
-        // stop kamera biar hemat baterai
-        stream.getTracks().forEach(track => track.stop());
+    function skipTutorial() {
+        const dontShow = document.getElementById('dontShowAgain').checked;
+        
+        if (dontShow) {
+            // Simpan ke localStorage agar tidak muncul lagi selamanya
+            localStorage.setItem('tutorialShown', 'permanent');
+        }
+        
+        document.getElementById('tutorialOverlay').classList.remove('active');
+    }
 
-        // ✅ 3. Ambil lokasi GPS
-        navigator.geolocation.getCurrentPosition(async (pos) => {
-            const lat = pos.coords.latitude;
-            const lng = pos.coords.longitude;
+    function finishTutorial() {
+        const dontShow = document.getElementById('dontShowAgain').checked;
+        
+        if (dontShow) {
+            // Simpan ke localStorage agar tidak muncul lagi selamanya
+            localStorage.setItem('tutorialShown', 'permanent');
+        }
+        
+        document.getElementById('tutorialOverlay').classList.remove('active');
+    }
 
-            canvas.toBlob(async (blob) => {
-                const formData = new FormData();
-                formData.append("foto", blob, "absen.jpg");
-                formData.append("lat", lat);
-                formData.append("lng", lng);
-
-                try {
-                    const res = await fetch("/absen", { method: "POST", body: formData });
-                    const result = await res.json();
-
-                    if (result.success) {
-                        Swal.fire("✅ Sukses", `${result.nama} berhasil absen!`, "success")
-                            .then(() => window.location.href = result.redirect);
-                    } else {
-                        Swal.fire("❌ Gagal", result.message, "error");
-                    }
-                } catch (err) {
-                    Swal.fire("⚠️ Error", "Tidak bisa menghubungi server.", "error");
-                }
-            }, "image/jpeg", 0.9);
-
-        }, () => {
-            Swal.fire("⚠️ Error", "Lokasi tidak bisa diambil. Aktifkan GPS.", "error");
+    function updateStep() {
+        // Update step visibility
+        document.querySelectorAll('.tutorial-step').forEach((step, index) => {
+            step.classList.toggle('active', index + 1 === currentStep);
         });
 
-    } catch (err) {
-        Swal.fire("⚠️ Error", "Terjadi masalah saat memulai absen.", "error");
-    }
-});
-</script>
+        // Update progress dots
+        document.querySelectorAll('.progress-dot').forEach((dot, index) => {
+            dot.classList.toggle('active', index + 1 === currentStep);
+        });
 
+        // Update button text
+        const nextBtn = document.getElementById('nextBtn');
+        if (currentStep === totalSteps) {
+            nextBtn.textContent = 'Selesai ✓';
+            nextBtn.classList.remove('btn-next');
+            nextBtn.classList.add('btn-finish');
+        } else {
+            nextBtn.textContent = 'Lanjut';
+            nextBtn.classList.remove('btn-finish');
+            nextBtn.classList.add('btn-next');
+        }
+    }
+
+    // Existing absen button handler
+    document.getElementById("absenBtn").addEventListener("click", async function(e) {
+        e.preventDefault();
+        
+        try {
+            // Cek siswa terdaftar
+            let res = await fetch("/check_registered");
+            let data = await res.json();
+
+            if (!data.success) {
+                Swal.fire({
+                    icon: "warning",
+                    title: "Belum Ada Siswa Terdaftar",
+                    text: "Anda harus mendaftar terlebih dahulu sebelum melakukan absensi.",
+                    confirmButtonText: "Daftar Sekarang",
+                    showCancelButton: true,
+                    cancelButtonText: "Batal"
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        window.location.href = "/register";
+                    }
+                });
+                return;
+            }
+
+            // Lanjutkan ke halaman absen
+            window.location.href = "{{ url_for('absen_harian') }}";
+
+        } catch (err) {
+            Swal.fire("⚠️ Error", "Terjadi masalah saat memulai absen.", "error");
+        }
+    });
+</script>
 </body>
 </html>
