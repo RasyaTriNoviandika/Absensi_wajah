@@ -157,7 +157,6 @@
   <h2>📋 Data Absensi Siswa + Map</h2>
 
   <div id="map"></div>
-
   <div class="table-container">
     <table>
       <thead>
@@ -166,9 +165,12 @@
           <th>Nama</th>
           <th>Kelas</th>
           <th>Jurusan</th>
-          <th>Status</th>
-          <th>Waktu</th>
-          <th>Lokasi</th>
+          <th>Status Masuk</th>
+          <th>Waktu Masuk</th>
+          <th>Lokasi Masuk</th>
+          <th>Status Pulang</th>
+          <th>Waktu Pulang</th>
+          <th>Lokasi Pulang</th>
         </tr>
       </thead>
       <tbody>
@@ -182,7 +184,28 @@
           <td>{{ a[4] }}</td>
           <td>
             {% if a[5] and a[6] %}
-              <a class="button" href="#" onclick="focusMarker({{ loop.index0 }})">Lihat Lokasi</a>
+              <a class="button" href="#" onclick="focusMarker({{ loop.index0 }})">📍 Lihat Masuk</a>
+            {% else %}
+              -
+            {% endif %}
+          </td>
+          <td>
+            {% if a[7] %}
+              {{ a[7] }}
+            {% else %}
+              <span style="color:#999;">Belum Pulang</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if a[8] %}
+              {{ a[8] }}
+            {% else %}
+              <span style="color:#999;">-</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if a[9] and a[10] %}
+              <a class="button" href="#" onclick="focusMarkerPulang({{ loop.index0 }})">📍 Lihat Pulang</a>
             {% else %}
               -
             {% endif %}
@@ -195,19 +218,19 @@
 
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <script>
+  <!-- // Replace bagian script di absensi_map.html -->
+<script>
     var map = L.map('map').setView([{{ SCHOOL_LAT }}, {{ SCHOOL_LNG }}], 14);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-    // 🏫 Marker sekolah
     var schoolMarker = L.marker([{{ SCHOOL_LAT }}, {{ SCHOOL_LNG }}])
-      .addTo(map)
-      .bindPopup("<b>📍 Sekolah</b><br>Area absensi utama");
+    .addTo(map)
+    .bindPopup("<b>📍 SMKN 9 Bekasi</b><br>Area absensi utama");
 
-    // 🔵 Lingkaran radius
+    // Lingkaran radius
     var schoolCircle = L.circle([{{ SCHOOL_LAT }}, {{ SCHOOL_LNG }}], {
       radius: {{ RADIUS|default(15) }},
       color: "red",
@@ -216,34 +239,79 @@
     }).addTo(map);
 
     var absensiData = {{ absensi|tojson }};
-    var markers = [];
+    var markersMasuk = [];
+    var markersPulang = [];
 
     absensiData.forEach(function(a, i){
-      var lat = a[5];
-      var lng = a[6];
+      var lat = a[5];  // latitude masuk
+      var lng = a[6];  // longitude masuk
+      var latPulang = a[9];  // latitude pulang
+      var lngPulang = a[10]; // longitude pulang
+      
+      // Marker absen masuk (biru)
       if(lat && lng){
-        var marker = L.marker([lat, lng]).addTo(map);
-        marker.bindPopup(
-          `<b>${a[0]}</b><br>${a[1]} - ${a[2]}<br>Status: ${a[3]}<br>Waktu: ${a[4]}`
+        var markerMasuk = L.marker([lat, lng], {
+          icon: L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+          })
+        }).addTo(map);
+        
+        markerMasuk.bindPopup(
+          `<b>${a[0]}</b><br>
+          ${a[1]} - ${a[2]}<br>
+          <strong>MASUK:</strong> ${a[3]}<br>
+          Waktu: ${a[4]}`
         );
-        markers.push(marker);
-      } else {
-        markers.push(null);
+        markersMasuk.push(markerMasuk);
+      }
+      
+      // Marker absen pulang (hijau)
+      if(latPulang && lngPulang){
+        var markerPulang = L.marker([latPulang, lngPulang], {
+          icon: L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+          })
+        }).addTo(map);
+        
+        markerPulang.bindPopup(
+          `<b>${a[0]}</b><br>
+          ${a[1]} - ${a[2]}<br>
+          <strong>PULANG:</strong> ${a[7]}<br>
+          Waktu: ${a[8]}`
+        );
+        markersPulang.push(markerPulang);
       }
     });
 
-    // Zoom agar semua marker + sekolah terlihat
-    var validMarkers = markers.filter(m => m !== null);
-    validMarkers.push(schoolMarker);
-
-    if (validMarkers.length > 0) {
-      var group = L.featureGroup(validMarkers);
+    // Zoom agar semua marker terlihat
+    var allMarkers = [...markersMasuk, ...markersPulang, schoolMarker].filter(m => m !== null);
+    if (allMarkers.length > 0) {
+      var group = L.featureGroup(allMarkers);
       map.fitBounds(group.getBounds().pad(0.2));
     }
 
-    // Fokus ke marker siswa kalau tombol ditekan
+    // Fungsi fokus marker masuk
     function focusMarker(index){
-      var marker = markers[index];
+      var marker = markersMasuk[index];
+      if(marker){
+        map.setView(marker.getLatLng(), 17);
+        marker.openPopup();
+      }
+    }
+    
+    // Fungsi fokus marker pulang
+    function focusMarkerPulang(index){
+      var marker = markersPulang[index];
       if(marker){
         map.setView(marker.getLatLng(), 17);
         marker.openPopup();

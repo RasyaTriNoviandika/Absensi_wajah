@@ -91,9 +91,14 @@
 
     <!-- Tombol utama -->
     <div class="options">
-        <a href="{{ url_for('absen_harian') }}" class="option-btn primary-btn">
+        <a href="{{ url_for('absen_harian') }}" class="option-btn primary-btn" id="absenBtn">
             <span class="icon">📸</span>
             <span>Absen Sekarang</span>
+        </a>
+
+        <a href="{{url_for('absen_pulang_harian')}}" class="option-btn secondary-btn">
+            <span class="icon">🏃</span>
+            <span>Absen Pulang</span>
         </a>
 
         <a href="{{ url_for('register_user') }}" class="option-btn secondary-btn">
@@ -106,7 +111,6 @@
             <span>Lihat Data Absensi</span>
         </a>
     </div>
-
     <!-- Login Admin/Guru (diletakkan di bawah menu dengan pemisah) -->
     <div class="admin-link">
         <a href="{{ url_for('admin_login') }}">🔐 Login Admin/Guru</a>

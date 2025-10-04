@@ -15,12 +15,10 @@ import ast
 import secrets
 import os
 import numpy as np
-from services.location_service import dalam_radius
-from services.face_service import encode_wajah, bandingkan_wajah
-from config import get_config
+
+
 
 app = Flask(__name__)
-app.config.from_object(get_config())
 
 # ============= KONFIGURASI KEAMANAN =============
 app.config['SECRET_KEY'] = secrets.token_hex(16)
@@ -28,8 +26,8 @@ app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_TYPE'] = 'filesystem'
 
 # ---------------- Konstanta Default ----------------
-SCHOOL_LAT = -6.260960
-SCHOOL_LNG = 106.959603
+SCHOOL_LAT = -6.2704913253598
+SCHOOL_LNG = 106.96107261359252
 RADIUS = 15  
 
 DB_NAME = "database.db"
@@ -148,6 +146,11 @@ def hitung_jarak(lat1, lng1, lat2, lng2):
 
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return R * c
+
+def dalam_radius(lat_user, lon_user, lat_target, lon_target, radius_meter=100):
+    """Cek apakah user ada dalam radius"""
+    jarak = hitung_jarak(lat_user, lon_user, lat_target, lon_target)
+    return jarak <= radius_meter, jarak
 
 def get_all_siswa():
     """Ambil semua data siswa"""
@@ -451,6 +454,7 @@ def potret_user():
 
 @app.route("/absen", methods=["POST"])
 def absen():
+    """Proses absensi siswa"""
     try:
         file = request.files["foto"]
         lat = float(request.form["lat"])
@@ -468,16 +472,14 @@ def absen():
         conn.close()
 
         school_lat, school_lng, radius = row
+        jarak = hitung_jarak(lat, lng, school_lat, school_lng)
 
-        # ✅ pakai service location
-        valid, jarak = dalam_radius(lat, lng, school_lat, school_lng, radius)
-
-        if valid:
+        # Perbaikan logika status yang lebih jelas
+        if jarak <= radius:
             status = "HADIR"
         else:
             status = f"TERLAMBAT/DILUAR AREA ({jarak:.0f}m dari sekolah)"
 
-        # ✅ pakai service face
         siswa = cari_siswa_dengan_wajah(filepath)
 
         # Hapus file temporary
@@ -524,8 +526,10 @@ def absen():
         })
 
     except Exception as e:
+        # Hapus file jika ada error
         if 'filepath' in locals() and os.path.exists(filepath):
             os.remove(filepath)
+        
         return jsonify({"success": False, "message": f"Terjadi kesalahan: {str(e)}"})
 
 @app.route("/absen_harian", methods=["GET", "POST"])
@@ -556,12 +560,15 @@ def absen_harian():
     file.save(temp_path)
 
     try:
-        # ✅ pakai service encode
-        encoding = encode_wajah(temp_path)
+        # Encode wajah
+        img = face_recognition.load_image_file(temp_path)
+        encodings = face_recognition.face_encodings(img)
         os.remove(temp_path)
 
-        if encoding is None:
+        if not encodings:
             return jsonify({"success": False, "message": "Wajah tidak terdeteksi!"})
+
+        encoding = encodings[0]
 
         # Bandingkan dengan semua siswa
         conn = sqlite3.connect(DB_NAME)
@@ -572,8 +579,10 @@ def absen_harian():
 
         cocok = None
         for s in siswa_list:
-            db_encoding = ast.literal_eval(s[4])  # ✅ aman, ganti eval → literal_eval
-            if bandingkan_wajah(db_encoding, encoding, tolerance=0.45):
+            db_encoding = np.array(eval(s[4]))  # kalau encoding disimpan pakai str(list)
+            distance = face_recognition.face_distance([db_encoding], encoding)[0]
+
+            if distance < 0.45:  # threshold
                 cocok = {
                     "id": s[0],
                     "nama": s[1],
@@ -604,7 +613,6 @@ def absen_harian():
         return jsonify({"success": False, "message": f"Error saat absensi: {str(e)}"})
 
 
-
 @app.route("/check_students")
 def check_students():
     """API endpoint untuk mengecek jumlah siswa yang sudah terdaftar"""
@@ -631,16 +639,170 @@ def check_registered():
     else:
         return jsonify({"success": False})
 
-
+# Update route /absensi di app.py dengan query ini:
 @app.route("/absensi")
 def absensi_user():
-    """Tabel absensi untuk user"""
+    """Tabel absensi untuk user - dengan data pulang"""
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
-    cur.execute("SELECT nama, kelas, jurusan, status, waktu FROM absensi ORDER BY waktu DESC")
+    
+    # Cek dulu apakah kolom status_pulang ada
+    cur.execute("PRAGMA table_info(absensi)")
+    columns = [col[1] for col in cur.fetchall()]
+    
+    if 'status_pulang' in columns:
+        # Jika kolom sudah ada, pakai query lengkap
+        cur.execute("""
+            SELECT nama, kelas, jurusan, status, waktu, 
+                   status_pulang, waktu_pulang 
+            FROM absensi 
+            ORDER BY waktu DESC
+        """)
+    else:
+        # Jika kolom belum ada (fallback)
+        cur.execute("""
+            SELECT nama, kelas, jurusan, status, waktu, 
+                   NULL as status_pulang, NULL as waktu_pulang 
+            FROM absensi 
+            ORDER BY waktu DESC
+        """)
+    
     absensi = cur.fetchall()
     conn.close()
     return render_template("user/absensi.html", absensi=absensi)
+# ============= ROUTE ABSEN PULANG =============
+@app.route("/absen_pulang", methods=["POST"])
+def absen_pulang():
+    try:
+        file = request.files["foto"]
+        lat = float(request.form["lat"])
+        lng = float(request.form["lng"])
+
+        filename = f"pulang_{uuid.uuid4().hex}.jpg"
+        filepath = os.path.join(UPLOAD_DIR, filename)
+        file.save(filepath)
+
+        # Ambil area absensi dari DB
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+        cur.execute("SELECT latitude, longitude, radius FROM settings WHERE id=1")
+        row = cur.fetchone()
+        conn.close()
+
+        school_lat, school_lng, radius = row
+
+        # Cek lokasi
+        valid, jarak = dalam_radius(lat, lng, school_lat, school_lng, radius)
+
+        if valid:
+            status_pulang = "PULANG TEPAT WAKTU"
+        else:
+            status_pulang = f"PULANG DILUAR AREA ({jarak:.0f}m dari sekolah)"
+
+        # Cari siswa dengan wajah
+        siswa = cari_siswa_dengan_wajah(filepath)
+
+        # Hapus file temporary
+        if os.path.exists(filepath):
+            os.remove(filepath)
+
+        if not siswa:
+            return jsonify({"success": False, "message": "Wajah tidak dikenali! Pastikan Anda sudah terdaftar."})
+
+        # Waktu lokal WIB
+        waktu_lokal = datetime.utcnow() + timedelta(hours=7)
+        tanggal_hari_ini = waktu_lokal.date()
+        jam_sekarang = waktu_lokal.time()
+
+        # ✅ VALIDASI JAM PULANG (hanya bisa absen pulang jam 15:00 - 17:00)
+        jam_mulai_pulang = datetime.strptime("10:00", "%H:%M").time()
+        jam_akhir_pulang = datetime.strptime("17:00", "%H:%M").time()
+
+        if not (jam_mulai_pulang <= jam_sekarang <= jam_akhir_pulang):
+            return jsonify({
+                "success": False, 
+                "message": f"Absen pulang hanya bisa dilakukan antara jam 15:00 - 17:00 WIB. Sekarang jam {waktu_lokal.strftime('%H:%M')} WIB."
+            })
+
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+
+        # Cek apakah sudah absen masuk hari ini
+        cur.execute("""
+            SELECT id, waktu_pulang FROM absensi
+            WHERE siswa_id = ? AND DATE(waktu) = ?
+        """, (siswa["id"], tanggal_hari_ini))
+        absen_hari_ini = cur.fetchone()
+
+        if not absen_hari_ini:
+            conn.close()
+            return jsonify({
+                "success": False, 
+                "message": f"{siswa['nama']} belum absen masuk hari ini! Silakan absen masuk terlebih dahulu."
+            })
+
+        # Cek apakah sudah absen pulang
+        if absen_hari_ini[1] is not None:
+            conn.close()
+            return jsonify({
+                "success": False, 
+                "message": f"{siswa['nama']} sudah absen pulang hari ini!"
+            })
+
+        # Update absensi dengan data pulang
+        cur.execute("""
+            UPDATE absensi 
+            SET waktu_pulang = ?, status_pulang = ?, latitude_pulang = ?, longitude_pulang = ?
+            WHERE id = ?
+        """, (waktu_lokal, status_pulang, lat, lng, absen_hari_ini[0]))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            "success": True,
+            "redirect": url_for("absensi_user"),
+            "nama": siswa["nama"],
+            "kelas": siswa["kelas"],
+            "jurusan": siswa["jurusan"],
+            "status": status_pulang,
+            "waktu": waktu_lokal.strftime("%H:%M:%S")
+        })
+
+    except Exception as e:
+        if 'filepath' in locals() and os.path.exists(filepath):
+            os.remove(filepath)
+        return jsonify({"success": False, "message": f"Terjadi kesalahan: {str(e)}"})
+
+
+@app.route("/absen_pulang_harian", methods=["GET"])
+def absen_pulang_harian():
+    """Halaman absensi pulang - hanya bisa diakses jam 15:00-17:00"""
+    
+    # Waktu lokal WIB
+    waktu_lokal = datetime.utcnow() + timedelta(hours=7)
+    jam_sekarang = waktu_lokal.time()
+    
+    # Validasi jam
+    jam_mulai_pulang = datetime.strptime("10:00", "%H:%M").time()
+    jam_akhir_pulang = datetime.strptime("17:00", "%H:%M").time()
+    
+    if not (jam_mulai_pulang <= jam_sekarang <= jam_akhir_pulang):
+        flash(f"⏰ Absen pulang hanya bisa dilakukan antara jam 15:00 - 17:00 WIB. Sekarang jam {waktu_lokal.strftime('%H:%M')} WIB.", "warning")
+        return redirect(url_for("index"))
+    
+    # Cek apakah sudah ada siswa terdaftar
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) FROM siswa WHERE encoding IS NOT NULL")
+    total_siswa_terdaftar = cur.fetchone()[0]
+    conn.close()
+
+    if total_siswa_terdaftar == 0:
+        flash("Belum ada siswa yang terdaftar! Silakan daftar terlebih dahulu.", "warning")
+        return redirect(url_for("register_user"))
+
+    return render_template("user/absen_pulang.html")
 
 # -------- ADMIN (Perlu login) --------
 @app.route("/admin")
@@ -821,41 +983,59 @@ def admin_get_area():
     else:
         return jsonify({"lat": SCHOOL_LAT, "lon": SCHOOL_LNG, "radius": RADIUS})
 
+# Update route /admin/absensi_map di app.py
+
 @app.route("/admin/absensi_map")
 @login_required
 def admin_absensi_map():
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
+    
+    # Query dengan COALESCE untuk handle kolom yang mungkin belum ada
     cur.execute("""
-        SELECT nama, kelas, jurusan, status, waktu, latitude, longitude
+        SELECT nama, kelas, jurusan, status, waktu, latitude, longitude,
+               COALESCE(status_pulang, '') as status_pulang, 
+               COALESCE(waktu_pulang, '') as waktu_pulang, 
+               COALESCE(latitude_pulang, 0) as latitude_pulang, 
+               COALESCE(longitude_pulang, 0) as longitude_pulang
         FROM absensi
         ORDER BY waktu DESC
     """)
     absensi = cur.fetchall()
     conn.close()
 
-    # ambil koordinat sekolah dari settings
+    # Ambil koordinat sekolah dari settings
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
-    cur.execute("SELECT latitude, longitude FROM settings WHERE id=1")
+    cur.execute("SELECT latitude, longitude, radius FROM settings WHERE id=1")
     row = cur.fetchone()
     conn.close()
+    
     school_lat = row[0] if row else SCHOOL_LAT
     school_lng = row[1] if row else SCHOOL_LNG
+    school_radius = row[2] if row else RADIUS
 
     return render_template(
         "admin/absensi_map.html",
         absensi=absensi,
         SCHOOL_LAT=school_lat,
-        SCHOOL_LNG=school_lng
+        SCHOOL_LNG=school_lng,
+        RADIUS=school_radius
     )
 
 @app.route("/admin/export/excel")
 @login_required
 def export_excel():
     conn = sqlite3.connect(DB_NAME)
-    df = pd.read_sql_query("SELECT nama, kelas, jurusan, status, waktu FROM absensi", conn)
+    df = pd.read_sql_query("""
+        SELECT nama, kelas, jurusan, status, waktu, 
+               status_pulang, waktu_pulang 
+        FROM absensi
+    """, conn)
     conn.close()
+
+    # Rename kolom agar lebih jelas
+    df.columns = ['Nama', 'Kelas', 'Jurusan', 'Status Masuk', 'Waktu Masuk', 'Status Pulang', 'Waktu Pulang']
 
     output = BytesIO()
     df.to_excel(output, index=False, engine='openpyxl')
@@ -868,12 +1048,19 @@ def export_excel():
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
+
+# Replace fungsi export_pdf di app.py
 @app.route("/admin/export/pdf")
 @login_required
 def export_pdf():
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
-    cur.execute("SELECT nama, kelas, jurusan, status, waktu FROM absensi ORDER BY waktu DESC")
+    cur.execute("""
+        SELECT nama, kelas, jurusan, status, waktu, 
+               status_pulang, waktu_pulang 
+        FROM absensi 
+        ORDER BY waktu DESC
+    """)
     data = cur.fetchall()
     conn.close()
 
@@ -882,41 +1069,43 @@ def export_pdf():
     styles = getSampleStyleSheet()
     elements = []
 
-    # Tambah style kecil biar wrap muat
     small_style = ParagraphStyle(
         'small',
         parent=styles['Normal'],
-        fontSize=8,
-        leading=10,
-        alignment=1  # 0=left, 1=center, 2=right
+        fontSize=7,
+        leading=9,
+        alignment=1
     )
 
-    # Judul
-    elements.append(Paragraph("Laporan Absensi", styles['Title']))
+    elements.append(Paragraph("Laporan Absensi (Masuk & Pulang)", styles['Title']))
 
-    # Header tabel
     table_data = [
         [Paragraph("Nama", small_style),
          Paragraph("Kelas", small_style),
          Paragraph("Jurusan", small_style),
-         Paragraph("Status", small_style),
-         Paragraph("Waktu", small_style)]
+         Paragraph("Status Masuk", small_style),
+         Paragraph("Waktu Masuk", small_style),
+         Paragraph("Status Pulang", small_style),
+         Paragraph("Waktu Pulang", small_style)]
     ]
 
-    # Data tabel
     for row in data:
-        nama, kelas, jurusan, status, waktu = row
-        waktu_fmt = str(waktu).split(".")[0]  # format tanpa microseconds
+        nama, kelas, jurusan, status, waktu, status_pulang, waktu_pulang = row
+        waktu_fmt = str(waktu).split(".")[0] if waktu else "-"
+        waktu_pulang_fmt = str(waktu_pulang).split(".")[0] if waktu_pulang else "-"
+        status_pulang_txt = status_pulang if status_pulang else "Belum Pulang"
+        
         table_data.append([
             Paragraph(str(nama), small_style),
             Paragraph(str(kelas), small_style),
             Paragraph(str(jurusan), small_style),
             Paragraph(str(status), small_style),
-            Paragraph(waktu_fmt, small_style)
+            Paragraph(waktu_fmt, small_style),
+            Paragraph(status_pulang_txt, small_style),
+            Paragraph(waktu_pulang_fmt, small_style)
         ])
 
-    # Atur lebar kolom biar rapi
-    col_widths = [90, 50, 120, 120, 90]
+    col_widths = [70, 40, 80, 80, 70, 80, 70]
 
     table = Table(table_data, colWidths=col_widths, repeatRows=1)
     table.setStyle(TableStyle([
@@ -924,8 +1113,8 @@ def export_pdf():
         ('TEXTCOLOR',(0,0),(-1,0),colors.whitesmoke),
         ('ALIGN',(0,0),(-1,-1),'CENTER'),
         ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0,0), (-1,-1), 8),
-        ('BOTTOMPADDING', (0,0), (-1,0), 10),
+        ('FONTSIZE', (0,0), (-1,-1), 7),
+        ('BOTTOMPADDING', (0,0), (-1,0), 8),
         ('GRID', (0,0), (-1,-1), 0.5, colors.black),
         ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
     ]))
@@ -939,12 +1128,18 @@ def export_pdf():
                      mimetype="application/pdf"
     )
 
+# Replace route /admin/absensi/print di app.py
 @app.route("/admin/absensi/print")
 @login_required
 def print_absensi():
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
-    cur.execute("SELECT nama, kelas, jurusan, status, waktu FROM absensi ORDER BY waktu DESC")
+    cur.execute("""
+        SELECT nama, kelas, jurusan, status, waktu, 
+               status_pulang, waktu_pulang 
+        FROM absensi 
+        ORDER BY waktu DESC
+    """)
     absensi = cur.fetchall()
     conn.close()
 
