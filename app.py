@@ -133,6 +133,25 @@ def buat_tabel():
     conn.commit()
     conn.close()
 
+def cek_kolom_absensi_pulang():
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+
+    cur.execute("PRAGMA table_info(absensi)")
+    kolom = [row[1] for row in cur.fetchall()]
+
+    if "waktu_pulang" not in kolom:
+        cur.execute("ALTER TABLE absensi ADD COLUMN waktu_pulang TEXT")
+    if "status_pulang" not in kolom:
+        cur.execute("ALTER TABLE absensi ADD COLUMN status_pulang TEXT")
+    if "latitude_pulang" not in kolom:
+        cur.execute("ALTER TABLE absensi ADD COLUMN latitude_pulang REAL")
+    if "longitude_pulang" not in kolom:
+        cur.execute("ALTER TABLE absensi ADD COLUMN longitude_pulang REAL")
+
+    conn.commit()
+    conn.close()
+
 def hitung_jarak(lat1, lng1, lat2, lng2):
     """Hitung jarak antar koordinat (meter) menggunakan Haversine"""
     R = 6371000
@@ -474,11 +493,11 @@ def absen():
         school_lat, school_lng, radius = row
         jarak = hitung_jarak(lat, lng, school_lat, school_lng)
 
-        # Perbaikan logika status yang lebih jelas
+        # Perbaikan logika status area
         if jarak <= radius:
             status = "HADIR"
         else:
-            status = f"TERLAMBAT/DILUAR AREA ({jarak:.0f}m dari sekolah)"
+            status = f"DILUAR AREA ({jarak:.0f}m dari sekolah)"
 
         siswa = cari_siswa_dengan_wajah(filepath)
 
@@ -492,6 +511,22 @@ def absen():
         # Waktu lokal WIB
         waktu_lokal = datetime.utcnow() + timedelta(hours=7)
         tanggal_hari_ini = waktu_lokal.date()
+        jam_sekarang = waktu_lokal.time()
+
+        # ✅ VALIDASI JAM MASUK (misalnya 06:00 - 07:30 WIB)
+      # ✅ VALIDASI JAM MASUK (misalnya 06:00 - 07:30 WIB)
+        jam_mulai_masuk = datetime.strptime("06:00", "%H:%M").time()
+        jam_akhir_masuk = datetime.strptime("07:30", "%H:%M").time()
+
+        if jam_sekarang > jam_akhir_masuk:
+            status = "TERLAMBAT"
+        elif jam_sekarang < jam_mulai_masuk:
+            return jsonify({
+                "success": False,
+                "message": f"Absen masuk hanya bisa dilakukan mulai jam 06:00 WIB. Sekarang jam {waktu_lokal.strftime('%H:%M')} WIB."
+            })
+        else:
+            status = "HADIR"
 
         conn = sqlite3.connect(DB_NAME)
         cur = conn.cursor()
