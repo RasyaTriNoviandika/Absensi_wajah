@@ -121,7 +121,7 @@ def buat_admin_default():
             "INSERT INTO admin (username, password_hash) VALUES (?, ?)",
             ('admin', password_hash)
         )
-        # conn.commit()
+        conn.commit()
         # print("✅ Admin default dibuat - Username: admin, Password: gurusija")
     
     conn.close()
