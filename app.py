@@ -121,7 +121,7 @@ def buat_admin_default():
             "INSERT INTO admin (username, password_hash) VALUES (?, ?)",
             ('admin', password_hash)
         )
-        conn.commit()
+        # conn.commit()
         # print("✅ Admin default dibuat - Username: admin, Password: gurusija")
     
     conn.close()
@@ -1491,4 +1491,4 @@ def handle_exception(e):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     debug_mode = os.environ.get('DEBUG', 'False').lower() == 'true'
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=port, debug=debug_mode)
