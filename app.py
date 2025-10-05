@@ -1475,6 +1475,50 @@ try:
 except Exception as e:
     print(f"Warning: Database initialization failed: {e}")
 
+@app.route("/generate_dummy")
+def generate_dummy():
+    """Generate data dummy siswa dan absensi untuk pengujian"""
+    import random
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+
+    kelas_list = ["X", "XI", "XII"]
+    jurusan_list = ["SIJA1", "SIJA2", "DKV1", "DKV2"]
+    nama_depan = ["Rasya", "Iqbal", "Naufal", "Aisyah", "Dina", "Rama", "Putri", "Arif", "Dewi", "Andi"]
+
+    # Generate 50 siswa
+    for i in range(1, 51):
+        nama = f"{random.choice(nama_depan)} {random.choice(['A', 'B', 'C', 'D'])}"
+        kelas = random.choice(kelas_list)
+        jurusan = random.choice(jurusan_list)
+        nomor_absen = f"{kelas}-{jurusan}-{i:03d}"
+
+        # Masukkan siswa tanpa wajah (dummy)
+        cur.execute("""
+            INSERT INTO siswa (nama, kelas, jurusan, foto_path, encoding, nomor_absen)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (nama, kelas, jurusan, "faces/dummy.jpg", "[]", nomor_absen))
+
+    conn.commit()
+
+    # Ambil semua siswa id
+    cur.execute("SELECT id, nama, kelas, jurusan FROM siswa")
+    siswa_list = cur.fetchall()
+
+    # Generate absensi acak
+    now = datetime.utcnow() + timedelta(hours=7)
+    for s in siswa_list:
+        waktu = now - timedelta(days=random.randint(0, 10), hours=random.randint(0, 6))
+        status = random.choice(["HADIR", "TERLAMBAT"])
+        cur.execute("""
+            INSERT INTO absensi (siswa_id, nama, kelas, jurusan, latitude, longitude, status, waktu)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (s[0], s[1], s[2], s[3], SCHOOL_LAT, SCHOOL_LNG, status, waktu))
+
+    conn.commit()
+    conn.close()
+    return "✅ 50 siswa & absensi dummy berhasil dibuat!"
+
 # ============= ERROR HANDLERS =============
 @app.errorhandler(404)
 def page_not_found(e):
