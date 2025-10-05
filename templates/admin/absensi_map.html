@@ -162,56 +162,58 @@
       <thead>
         <tr>
           <th>No</th>
+          <th>No. Absen</th>
           <th>Nama</th>
           <th>Kelas</th>
           <th>Jurusan</th>
           <th>Status Masuk</th>
-          <th>Waktu Masuk</th>
+          <th>Jam Masuk</th>
           <th>Lokasi Masuk</th>
           <th>Status Pulang</th>
-          <th>Waktu Pulang</th>
+          <th>Jam Pulang</th>
           <th>Lokasi Pulang</th>
         </tr>
       </thead>
       <tbody>
-        {% for a in absensi %}
-        <tr>
-          <td>{{ loop.index }}</td>
-          <td>{{ a[0] }}</td>
-          <td>{{ a[1] }}</td>
-          <td>{{ a[2] }}</td>
-          <td>{{ a[3] }}</td>
-          <td>{{ a[4] }}</td>
-          <td>
-            {% if a[5] and a[6] %}
-              <a class="button" href="#" onclick="focusMarker({{ loop.index0 }})">📍 Lihat Masuk</a>
-            {% else %}
-              -
-            {% endif %}
-          </td>
-          <td>
-            {% if a[7] %}
-              {{ a[7] }}
-            {% else %}
-              <span style="color:#999;">Belum Pulang</span>
-            {% endif %}
-          </td>
-          <td>
-            {% if a[8] %}
-              {{ a[8] }}
-            {% else %}
-              <span style="color:#999;">-</span>
-            {% endif %}
-          </td>
-          <td>
-            {% if a[9] and a[10] %}
-              <a class="button" href="#" onclick="focusMarkerPulang({{ loop.index0 }})">📍 Lihat Pulang</a>
-            {% else %}
-              -
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
+       {% for a in absensi %}
+      <tr>
+  <td>{{ loop.index }}</td>
+  <td>{{ a[11] }}</td>  <!-- NOMOR ABSEN (index 11) -->
+  <td>{{ a[0] }}</td>   <!-- Nama -->
+  <td>{{ a[1] }}</td>   <!-- Kelas -->
+  <td>{{ a[2] }}</td>   <!-- Jurusan -->
+  <td>{{ a[3] }}</td>   <!-- Status Masuk -->
+  <td>{{ a[4] }}</td>   <!-- Waktu Masuk -->
+  <td>
+    {% if a[5] and a[6] %}
+      <a class="button" href="#" onclick="focusMarker({{ loop.index0 }})">📍 Lihat Masuk</a>
+    {% else %}
+      -
+    {% endif %}
+  </td>
+  <td>
+    {% if a[7] %}
+      {{ a[7] }}
+    {% else %}
+      <span style="color:#999;">Belum Pulang</span>
+    {% endif %}
+  </td>
+  <td>
+    {% if a[8] %}
+      {{ a[8] }}
+    {% else %}
+      <span style="color:#999;">-</span>
+    {% endif %}
+  </td>
+  <td>
+    {% if a[9] and a[10] %}
+      <a class="button" href="#" onclick="focusMarkerPulang({{ loop.index0 }})">📍 Lihat Pulang</a>
+    {% else %}
+      -
+    {% endif %}
+  </td>
+      </tr>
+      {% endfor %}
       </tbody>
     </table>
   </div>

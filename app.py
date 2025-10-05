@@ -305,6 +305,7 @@ def cari_siswa_dengan_wajah(file_path):
         return None
 
 # ============= FUNGSI BARU: CEK DUPLIKASI WAJAH SAAT REGISTRASI =============
+# ============= FUNGSI CEK DUPLIKASI WAJAH (FIXED) =============
 def cek_wajah_sudah_terdaftar(file_path):
     """Cek apakah wajah sudah pernah terdaftar sebelumnya - dengan threshold ketat"""
     try:
@@ -321,10 +322,10 @@ def cek_wajah_sudah_terdaftar(file_path):
         new_face_encoding = new_encodings[0]
         print(f"✅ Encoding wajah baru berhasil dibuat")
 
-        # Ambil semua siswa yang sudah terdaftar
+        # Ambil semua siswa yang sudah terdaftar (DENGAN NOMOR ABSEN)
         conn = sqlite3.connect(DB_NAME)
         cur = conn.cursor()
-        cur.execute("SELECT id, nama, kelas, jurusan, encoding FROM siswa WHERE encoding IS NOT NULL")
+        cur.execute("SELECT id, nama, kelas, jurusan, encoding, nomor_absen FROM siswa WHERE encoding IS NOT NULL")
         siswa_list = cur.fetchall()
         conn.close()
 
@@ -335,7 +336,7 @@ def cek_wajah_sudah_terdaftar(file_path):
         best_distance = float('inf')
 
         # Bandingkan dengan setiap siswa yang sudah terdaftar
-        for sid, nama, kelas, jurusan, encoding_str in siswa_list:
+        for sid, nama, kelas, jurusan, encoding_str, nomor_absen in siswa_list:
             if not encoding_str:
                 continue
                 
@@ -354,6 +355,7 @@ def cek_wajah_sudah_terdaftar(file_path):
                         "nama": nama,
                         "kelas": kelas,
                         "jurusan": jurusan,
+                        "nomor_absen": nomor_absen,  # TAMBAHKAN NOMOR ABSEN
                         "distance": distance
                     }
                         
@@ -362,7 +364,7 @@ def cek_wajah_sudah_terdaftar(file_path):
                 continue
 
         # ============= THRESHOLD DUPLIKASI LEBIH KETAT =============
-        DUPLICATE_THRESHOLD = 0.4  # Lebih ketat untuk deteksi duplikasi
+        DUPLICATE_THRESHOLD = FACE_DUPLICATE_THRESHOLD  # Gunakan konstanta global
         
         if best_match and best_distance < DUPLICATE_THRESHOLD:
             print(f"⚠️ DUPLIKASI TERDETEKSI! Wajah mirip dengan {best_match['nama']} (Distance: {best_distance:.4f})")
@@ -376,6 +378,47 @@ def cek_wajah_sudah_terdaftar(file_path):
         import traceback
         traceback.print_exc()
         return None
+
+# ============= FUNGSI HELPER UNTUK NOMOR ABSEN (HARUS DI LUAR!) =============
+def generate_nomor_absen(kelas, jurusan):
+    """
+    Generate nomor absen otomatis berdasarkan kelas dan jurusan
+    Format: [KELAS]-[JURUSAN]-[NOMOR_URUT]
+    Contoh: X-SIJA1-001, XI-DKV2-015
+    """
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+        
+        # Cari nomor terakhir untuk kelas-jurusan ini
+        prefix = f"{kelas}-{jurusan}"
+        cur.execute("""
+            SELECT nomor_absen FROM siswa 
+            WHERE nomor_absen LIKE ? 
+            ORDER BY nomor_absen DESC 
+            LIMIT 1
+        """, (f"{prefix}-%",))
+        
+        last = cur.fetchone()
+        conn.close()
+        
+        if last:
+            # Ambil nomor urut terakhir dan tambah 1
+            last_num = int(last[0].split('-')[-1])
+            new_num = last_num + 1
+        else:
+            # Ini siswa pertama di kelas-jurusan ini
+            new_num = 1
+        
+        nomor_absen = f"{prefix}-{new_num:03d}"
+        print(f"📝 Generated nomor absen: {nomor_absen}")
+        return nomor_absen
+        
+    except Exception as e:
+        print(f"❌ Error generating nomor absen: {e}")
+        # Fallback: gunakan timestamp
+        import time
+        return f"{kelas}-{jurusan}-{int(time.time())}"
 
 # ============= ROUTES LOGIN ADMIN =============
 @app.route("/admin/login", methods=["GET", "POST"])
@@ -497,7 +540,7 @@ def potret_user():
                 session.pop('temp_jurusan', None)
                 session.pop('_flashes', None)
                 
-                flash(f"⚠️ Wajah Anda sudah terdaftar atas nama '{siswa_duplikat['nama']}' dari kelas {siswa_duplikat['kelas']} {siswa_duplikat['jurusan']}. Tidak dapat mendaftar ulang!", "error")
+                flash(f"⚠️ Wajah Anda sudah terdaftar atas nama '{siswa_duplikat['nama']}' (Nomor Absen: {siswa_duplikat.get('nomor_absen', 'N/A')}) dari kelas {siswa_duplikat['kelas']} {siswa_duplikat['jurusan']}. Tidak dapat mendaftar ulang!", "error")
                 return redirect(url_for("absen_harian"))
 
             # ============= PROSES ENCODING JIKA TIDAK ADA DUPLIKASI =============
@@ -516,17 +559,21 @@ def potret_user():
 
             encoding = encodings[0].tolist()
 
+            # ============= GENERATE NOMOR ABSEN OTOMATIS =============
+            nomor_absen = generate_nomor_absen(siswa['kelas'], siswa['jurusan'])
+            print(f"✅ Nomor absen untuk {siswa['nama']}: {nomor_absen}")
+
             # Pindahkan file ke folder faces dengan nama final
             os.makedirs(FACES_DIR, exist_ok=True)
             final_foto_path = os.path.join(FACES_DIR, f"{uuid.uuid4().hex}.jpg")
             os.rename(temp_foto_path, final_foto_path)
 
-            # Simpan siswa ke database
+            # Simpan siswa ke database DENGAN NOMOR ABSEN
             conn = sqlite3.connect(DB_NAME)
             cur = conn.cursor()
             cur.execute(
-                "INSERT INTO siswa (nama, kelas, jurusan, foto_path, encoding) VALUES (?, ?, ?, ?, ?)",
-                (siswa['nama'], siswa['kelas'], siswa['jurusan'], final_foto_path, str(encoding))
+                "INSERT INTO siswa (nama, kelas, jurusan, foto_path, encoding, nomor_absen) VALUES (?, ?, ?, ?, ?, ?)",
+                (siswa['nama'], siswa['kelas'], siswa['jurusan'], final_foto_path, str(encoding), nomor_absen)
             )
             conn.commit()
             conn.close()
@@ -537,7 +584,7 @@ def potret_user():
             session.pop('temp_jurusan', None)
             session.pop('_flashes', None)
 
-            flash(f"🎉 Registrasi berhasil! {siswa['nama']} sekarang bisa melakukan absensi.", "success")
+            flash(f"🎉 Registrasi berhasil! {siswa['nama']} (Nomor Absen: {nomor_absen}) sekarang bisa melakukan absensi.", "success")
             return redirect(url_for("absen_harian"))
 
         except Exception as e:
@@ -789,7 +836,7 @@ def check_registered():
 # Update route /absensi di app.py dengan query ini:
 @app.route("/absensi")
 def absensi_user():
-    """Tabel absensi untuk user - dengan data pulang"""
+    """Tabel absensi untuk user - dengan data pulang dan nomor absen"""
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
     
@@ -798,25 +845,30 @@ def absensi_user():
     columns = [col[1] for col in cur.fetchall()]
     
     if 'status_pulang' in columns:
-        # Jika kolom sudah ada, pakai query lengkap
+        # Jika kolom sudah ada, pakai query lengkap dengan JOIN
         cur.execute("""
-            SELECT nama, kelas, jurusan, status, waktu, 
-                   status_pulang, waktu_pulang 
-            FROM absensi 
-            ORDER BY waktu DESC
+            SELECT a.nama, a.kelas, a.jurusan, a.status, a.waktu, 
+                   a.status_pulang, a.waktu_pulang,
+                   COALESCE(s.nomor_absen, '-') as nomor_absen
+            FROM absensi a
+            LEFT JOIN siswa s ON a.siswa_id = s.id
+            ORDER BY a.waktu DESC
         """)
     else:
         # Jika kolom belum ada (fallback)
         cur.execute("""
-            SELECT nama, kelas, jurusan, status, waktu, 
-                   NULL as status_pulang, NULL as waktu_pulang 
-            FROM absensi 
-            ORDER BY waktu DESC
+            SELECT a.nama, a.kelas, a.jurusan, a.status, a.waktu, 
+                   NULL as status_pulang, NULL as waktu_pulang,
+                   COALESCE(s.nomor_absen, '-') as nomor_absen
+            FROM absensi a
+            LEFT JOIN siswa s ON a.siswa_id = s.id
+            ORDER BY a.waktu DESC
         """)
     
     absensi = cur.fetchall()
     conn.close()
     return render_template("user/absensi.html", absensi=absensi)
+
 # ============= ROUTE ABSEN PULANG =============
 @app.route("/absen_pulang", methods=["POST"])
 def absen_pulang():
@@ -1053,7 +1105,7 @@ def admin_register():
             
             if siswa_duplikat:
                 os.remove(temp_foto_path)
-                flash(f"⚠️ Wajah sudah terdaftar atas nama '{siswa_duplikat['nama']}' dari kelas {siswa_duplikat['kelas']} {siswa_duplikat['jurusan']}. Tidak dapat mendaftar ulang!", "error")
+                flash(f"⚠️ Wajah sudah terdaftar atas nama '{siswa_duplikat['nama']}' (Nomor Absen: {siswa_duplikat.get('nomor_absen', 'N/A')}) dari kelas {siswa_duplikat['kelas']} {siswa_duplikat['jurusan']}. Tidak dapat mendaftar ulang!", "error")
                 return render_template("admin/register.html")
 
             # Encode wajah dengan validasi yang lebih ketat
@@ -1072,6 +1124,10 @@ def admin_register():
 
             encoding = encodings[0].tolist()
 
+            # ============= GENERATE NOMOR ABSEN OTOMATIS =============
+            nomor_absen = generate_nomor_absen(kelas, jurusan)
+            print(f"✅ Nomor absen untuk {nama}: {nomor_absen}")
+
             # Pindahkan file ke folder faces dengan nama final
             os.makedirs(FACES_DIR, exist_ok=True)
             final_foto_path = os.path.join(FACES_DIR, f"admin_{uuid.uuid4().hex}.jpg")
@@ -1080,13 +1136,13 @@ def admin_register():
             conn = sqlite3.connect(DB_NAME)
             cur = conn.cursor()
             cur.execute(
-                "INSERT INTO siswa (nama, kelas, jurusan, foto_path, encoding) VALUES (?, ?, ?, ?, ?)",
-                (nama, kelas, jurusan, final_foto_path, str(encoding))
+                "INSERT INTO siswa (nama, kelas, jurusan, foto_path, encoding, nomor_absen) VALUES (?, ?, ?, ?, ?, ?)",
+                (nama, kelas, jurusan, final_foto_path, str(encoding), nomor_absen)
             )
             conn.commit()
             conn.close()
 
-            flash(f"✅ Siswa {nama} berhasil didaftarkan!", "success")
+            flash(f"✅ Siswa {nama} (Nomor Absen: {nomor_absen}) berhasil didaftarkan!", "success")
             return redirect(url_for("admin_register"))
 
         except Exception as e:
@@ -1142,28 +1198,30 @@ def admin_absensi_map():
         cur.execute("PRAGMA table_info(absensi)")
         columns = [col[1] for col in cur.fetchall()]
         
-        # Query berdasarkan kolom yang tersedia
+        # Query dengan JOIN ke tabel siswa untuk ambil nomor_absen
         if all(col in columns for col in ['status_pulang', 'waktu_pulang', 'latitude_pulang', 'longitude_pulang']):
-            # Jika kolom pulang sudah ada
             cur.execute("""
-                SELECT nama, kelas, jurusan, status, waktu, latitude, longitude,
-                       COALESCE(status_pulang, '') as status_pulang, 
-                       COALESCE(waktu_pulang, '') as waktu_pulang, 
-                       COALESCE(latitude_pulang, 0) as latitude_pulang, 
-                       COALESCE(longitude_pulang, 0) as longitude_pulang
-                FROM absensi
-                ORDER BY waktu DESC
+                SELECT a.nama, a.kelas, a.jurusan, a.status, a.waktu, a.latitude, a.longitude,
+                       COALESCE(a.status_pulang, '') as status_pulang, 
+                       COALESCE(a.waktu_pulang, '') as waktu_pulang, 
+                       COALESCE(a.latitude_pulang, 0) as latitude_pulang, 
+                       COALESCE(a.longitude_pulang, 0) as longitude_pulang,
+                       COALESCE(s.nomor_absen, '-') as nomor_absen
+                FROM absensi a
+                LEFT JOIN siswa s ON a.siswa_id = s.id
+                ORDER BY a.waktu DESC
             """)
         else:
-            # Fallback jika kolom pulang belum ada
             cur.execute("""
-                SELECT nama, kelas, jurusan, status, waktu, latitude, longitude,
+                SELECT a.nama, a.kelas, a.jurusan, a.status, a.waktu, a.latitude, a.longitude,
                        '' as status_pulang, 
                        '' as waktu_pulang, 
                        0 as latitude_pulang, 
-                       0 as longitude_pulang
-                FROM absensi
-                ORDER BY waktu DESC
+                       0 as longitude_pulang,
+                       COALESCE(s.nomor_absen, '-') as nomor_absen
+                FROM absensi a
+                LEFT JOIN siswa s ON a.siswa_id = s.id
+                ORDER BY a.waktu DESC
             """)
         
         absensi = cur.fetchall()
