@@ -116,23 +116,23 @@ def buat_admin_default():
     
     if count == 0:
         # Buat admin default: username=admin, password=admin123
-        password_hash = generate_password_hash('admin123')
+        password_hash = generate_password_hash('gurusija')
         cur.execute(
             "INSERT INTO admin (username, password_hash) VALUES (?, ?)",
             ('admin', password_hash)
         )
         conn.commit()
-        print("✅ Admin default dibuat - Username: admin, Password: admin123")
+        # print("✅ Admin default dibuat - Username: admin, Password: gurusija")
     
     conn.close()
 
 # ---------------- Database ----------------
 def buat_tabel():
-    """Membuat tabel utama jika belum ada"""
+    """Membuat tabel utama jika belum ada dan menambahkan kolom baru jika perlu"""
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
 
-    # Tabel siswa
+    # ===================== TABEL SISWA =====================
     cur.execute("""
         CREATE TABLE IF NOT EXISTS siswa (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -144,7 +144,14 @@ def buat_tabel():
         )
     """)
 
-    # Tabel absensi
+    # Pastikan kolom nomor_absen ada
+    cur.execute("PRAGMA table_info(siswa)")
+    kolom_siswa = [r[1] for r in cur.fetchall()]
+    if "nomor_absen" not in kolom_siswa:
+        cur.execute("ALTER TABLE siswa ADD COLUMN nomor_absen TEXT")
+        print("✅ Kolom 'nomor_absen' ditambahkan ke tabel siswa")
+
+    # ===================== TABEL ABSENSI =====================
     cur.execute("""
         CREATE TABLE IF NOT EXISTS absensi (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -159,7 +166,7 @@ def buat_tabel():
         )
     """)
 
-    # Tabel settings (untuk area absensi)
+    # ===================== TABEL SETTINGS =====================
     cur.execute("""
         CREATE TABLE IF NOT EXISTS settings (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -179,6 +186,7 @@ def buat_tabel():
 
     conn.commit()
     conn.close()
+    print("🎉 Database siap digunakan!")
 
 def auto_migrate_database():
     """Auto-migrate database schema untuk kolom pulang"""
@@ -1483,4 +1491,4 @@ def handle_exception(e):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     debug_mode = os.environ.get('DEBUG', 'False').lower() == 'true'
-    app.run(host="0.0.0.0", port=port, debug=debug_mode)
+    app.run(debug=True)

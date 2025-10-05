@@ -233,12 +233,15 @@
             <p>Silakan login untuk mengakses dashboard Admin</p>
         </div>
 
-        <!-- Default Admin Info -->
-        <div class="admin-info">
-            <strong>🔑 Akun Default (Hanya Untuk Masa Testing):</strong><br>
-            Username: <strong>admin</strong><br>
-            Password: <strong>admin123</strong><br>
-        </div>
+        <div id="warningModal" style="display:none; position:fixed; top:0; left:0; 
+    width:100%; height:100%; background:rgba(0,0,0,0.5);
+    display:flex; justify-content:center; align-items:center; z-index:1000;">
+    <div style="background:#fff; padding:20px; border-radius:8px; max-width:400px; text-align:center;">
+        <h2>⚠ Peringatan ⚠</h2>
+        <p>Halaman ini khusus untuk admin/guru yang berwenang.</p>
+        <button id="closeModalBtn" style="padding:10px 20px; cursor:pointer;">Tutup</button>
+    </div>
+</div>
 
         <!-- Flash Messages -->
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -278,6 +281,23 @@
     </div>
 
     <script>
+         
+         document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('warningModal');
+    const closeBtn = document.getElementById('closeModalBtn');
+
+    // Jalankan alert dan tampilkan popup hanya sekali per sesi
+    if (!sessionStorage.getItem('adminWarningShown')) {
+        alert('⚠️ Peringatan: Halaman ini hanya untuk admin/guru yang berwenang. Mohon jangan bagikan informasi login.');
+        modal.style.display = "flex";
+        sessionStorage.setItem('adminWarningShown', 'true');
+    }
+
+    closeBtn.addEventListener('click', function() {
+        modal.style.display = "none";
+    });
+    });
+
         // Form submission dengan loading animation
         document.getElementById('loginForm').addEventListener('submit', function() {
             const loadingSpinner = document.getElementById('loadingSpinner');
