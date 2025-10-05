@@ -16,12 +16,26 @@ import secrets
 import os
 import numpy as np
 
+# ============= KONSTANTA & FUNGSI HELPER HARUS DI ATAS! =============
+SECRET_KEY_FILE = '.secret_key'
 
+def get_or_create_secret_key():
+    """Generate or load persistent secret key"""
+    if os.path.exists(SECRET_KEY_FILE):
+        with open(SECRET_KEY_FILE, 'r') as f:
+            return f.read().strip()
+    else:
+        key = secrets.token_hex(32)
+        with open(SECRET_KEY_FILE, 'w') as f:
+            f.write(key)
+        print(f"✅ New secret key created: {SECRET_KEY_FILE}")
+        return key
 
+# ============= BARU BISA BUAT APP =============
 app = Flask(__name__)
 
 # ============= KONFIGURASI KEAMANAN =============
-app.config['SECRET_KEY'] = secrets.token_hex(16)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or get_or_create_secret_key()
 app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_TYPE'] = 'filesystem'
 
@@ -38,10 +52,39 @@ UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # Face Recognition Thresholds
-FACE_RECOGNITION_THRESHOLD = 0.45  # Untuk absensi (0.4-0.5 recommended)
-FACE_DUPLICATE_THRESHOLD = 0.4     # Untuk deteksi duplikasi (lebih ketat)
+FACE_RECOGNITION_THRESHOLD = 0.45
+FACE_DUPLICATE_THRESHOLD = 0.4
 
-# ============= FUNGSI KEAMANAN =============
+# Maximum upload file size: 5MB
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
+
+# Allowed extensions
+ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def validate_upload_file(file):
+    """Validate uploaded file"""
+    if not file or file.filename == '':
+        return False, "File tidak boleh kosong"
+    
+    if not allowed_file(file.filename):
+        return False, "Format file tidak didukung! Gunakan JPG, JPEG, atau PNG"
+    
+    # Check file size
+    file.seek(0, os.SEEK_END)
+    file_size = file.tell()
+    file.seek(0)
+    
+    if file_size > app.config['MAX_CONTENT_LENGTH']:
+        return False, "Ukuran file terlalu besar! Maksimal 5MB"
+    
+    return True, "OK"
+
+# ============= FUNGSI VERIFIKASI & STATISTIK NOMOR ABSEN =============
+
 def login_required(f):
     """Decorator untuk memastikan admin sudah login"""
     from functools import wraps
@@ -518,11 +561,14 @@ def potret_user():
 
     if request.method == "POST":
         file = request.files["foto"]
-        if not file or file.filename == "":
-            flash("Foto harus diupload!", "error")
+        
+        # ✅ Validasi file sekali saja
+        is_valid, error_msg = validate_upload_file(file)
+        if not is_valid:
+            flash(error_msg, "error")
             return render_template("user/potret.html", siswa=siswa)
-
-        # Simpan foto sementara untuk pengecekan
+        
+        # ✅ INDENTASI BENAR - Simpan foto sementara untuk pengecekan
         os.makedirs(UPLOAD_DIR, exist_ok=True)
         temp_foto_path = os.path.join(UPLOAD_DIR, f"temp_{uuid.uuid4().hex}.jpg")
         file.save(temp_foto_path)
@@ -773,7 +819,7 @@ def absen_harian():
 
         cocok = None
         for s in siswa_list:
-            db_encoding = np.array(eval(s[4]))  # kalau encoding disimpan pakai str(list)
+            db_encoding = np.array(ast.literal_eval(s[4]))
             distance = face_recognition.face_distance([db_encoding], encoding)[0]
 
             if distance < 0.45:  # threshold
@@ -1088,6 +1134,13 @@ def admin_register():
         kelas = request.form["kelas"]
         jurusan = request.form["jurusan"]
         file = request.files["foto"]
+
+         # ✅ VALIDASI FILE
+        is_valid, error_msg = validate_upload_file(file)
+        if not is_valid:
+            flash(error_msg, "error")
+            return render_template("admin/register.html")
+        
 
         # Validasi file
         if not file or file.filename == '':
@@ -1429,4 +1482,5 @@ def handle_exception(e):
 # ---------------- Main ----------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)  # Enable debug untuk melihat error
+    debug_mode = os.environ.get('DEBUG', 'False').lower() == 'true'
+    app.run(host="0.0.0.0", port=port, debug=debug_mode)
