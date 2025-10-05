@@ -1098,14 +1098,30 @@ def admin_index():
 @app.route("/admin/absensi")
 @login_required
 def admin_absensi():
-    """Tabel absensi untuk admin"""
+    """Tabel absensi untuk admin dengan fitur pencarian"""
+    search_query = request.args.get("q", "").strip()
+
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
-    cur.execute("""
-        SELECT nama, kelas, jurusan, status, waktu, latitude, longitude
-        FROM absensi
-        ORDER BY waktu DESC
-    """)
+
+    if search_query:
+        cur.execute("""
+            SELECT a.nama, a.kelas, a.jurusan, a.status, a.waktu, a.latitude, a.longitude,
+                   COALESCE(s.nomor_absen, '-') as nomor_absen
+            FROM absensi a
+            LEFT JOIN siswa s ON a.siswa_id = s.id
+            WHERE a.nama LIKE ? OR a.kelas LIKE ? OR a.jurusan LIKE ? OR s.nomor_absen LIKE ?
+            ORDER BY a.waktu DESC
+        """, (f"%{search_query}%", f"%{search_query}%", f"%{search_query}%", f"%{search_query}%"))
+    else:
+        cur.execute("""
+            SELECT a.nama, a.kelas, a.jurusan, a.status, a.waktu, a.latitude, a.longitude,
+                   COALESCE(s.nomor_absen, '-') as nomor_absen
+            FROM absensi a
+            LEFT JOIN siswa s ON a.siswa_id = s.id
+            ORDER BY a.waktu DESC
+        """)
+
     rows = cur.fetchall()
     conn.close()
 
@@ -1117,7 +1133,8 @@ def admin_absensi():
             "status": r[3],
             "waktu": r[4],
             "lat": r[5],
-            "lng": r[6]
+            "lng": r[6],
+            "nomor_absen": r[7]
         }
         for r in rows
     ]
@@ -1126,9 +1143,10 @@ def admin_absensi():
         "admin/absensi.html",
         absensi=absensi,
         SCHOOL_LAT=SCHOOL_LAT,
-        SCHOOL_LNG=SCHOOL_LNG
+        SCHOOL_LNG=SCHOOL_LNG,
+        search_query=search_query
     )
-
+    
 @app.route("/admin/absen_area")
 @login_required
 def admin_absen_area():
@@ -1248,66 +1266,51 @@ def admin_get_area():
         return jsonify({"lat": SCHOOL_LAT, "lon": SCHOOL_LNG, "radius": RADIUS})
 
 # Update route /admin/absensi_map di app.py
-@app.route("/admin/absensi_map")
+@app.route('/admin/absensi_map')
 @login_required
 def admin_absensi_map():
-    try:
-        conn = sqlite3.connect(DB_NAME)
-        cur = conn.cursor()
-        
-        # Cek dulu kolom apa saja yang ada
-        cur.execute("PRAGMA table_info(absensi)")
-        columns = [col[1] for col in cur.fetchall()]
-        
-        # Query dengan JOIN ke tabel siswa untuk ambil nomor_absen
-        if all(col in columns for col in ['status_pulang', 'waktu_pulang', 'latitude_pulang', 'longitude_pulang']):
-            cur.execute("""
-                SELECT a.nama, a.kelas, a.jurusan, a.status, a.waktu, a.latitude, a.longitude,
-                       COALESCE(a.status_pulang, '') as status_pulang, 
-                       COALESCE(a.waktu_pulang, '') as waktu_pulang, 
-                       COALESCE(a.latitude_pulang, 0) as latitude_pulang, 
-                       COALESCE(a.longitude_pulang, 0) as longitude_pulang,
-                       COALESCE(s.nomor_absen, '-') as nomor_absen
-                FROM absensi a
-                LEFT JOIN siswa s ON a.siswa_id = s.id
-                ORDER BY a.waktu DESC
-            """)
-        else:
-            cur.execute("""
-                SELECT a.nama, a.kelas, a.jurusan, a.status, a.waktu, a.latitude, a.longitude,
-                       '' as status_pulang, 
-                       '' as waktu_pulang, 
-                       0 as latitude_pulang, 
-                       0 as longitude_pulang,
-                       COALESCE(s.nomor_absen, '-') as nomor_absen
-                FROM absensi a
-                LEFT JOIN siswa s ON a.siswa_id = s.id
-                ORDER BY a.waktu DESC
-            """)
-        
-        absensi = cur.fetchall()
-        
-        # Ambil koordinat sekolah dari settings
-        cur.execute("SELECT latitude, longitude, radius FROM settings WHERE id=1")
-        row = cur.fetchone()
-        conn.close()
-        
-        school_lat = row[0] if row else SCHOOL_LAT
-        school_lng = row[1] if row else SCHOOL_LNG
-        school_radius = row[2] if row else RADIUS
+    search_query = request.args.get('q', '').strip()
 
-        return render_template(
-            "admin/absensi_map.html",
-            absensi=absensi,
-            SCHOOL_LAT=school_lat,
-            SCHOOL_LNG=school_lng,
-            RADIUS=school_radius
-        )
-        
-    except Exception as e:
-        print(f"❌ Error di absensi_map: {e}")
-        flash(f"Error memuat data absensi: {str(e)}", "error")
-        return redirect(url_for("admin_index"))
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+
+    if search_query:
+        cur.execute("""
+            SELECT 
+                a.nama, a.kelas, a.jurusan, a.status, a.waktu, 
+                a.latitude, a.longitude,
+                a.status_pulang, a.waktu_pulang, 
+                a.latitude_pulang, a.longitude_pulang,
+                COALESCE(s.nomor_absen, '-') AS nomor_absen
+            FROM absensi a
+            LEFT JOIN siswa s ON a.siswa_id = s.id
+            WHERE a.nama LIKE ? OR a.kelas LIKE ? OR a.jurusan LIKE ? OR s.nomor_absen LIKE ?
+            ORDER BY a.waktu DESC
+        """, (f"%{search_query}%", f"%{search_query}%", f"%{search_query}%", f"%{search_query}%"))
+    else:
+        cur.execute("""
+            SELECT 
+                a.nama, a.kelas, a.jurusan, a.status, a.waktu, 
+                a.latitude, a.longitude,
+                a.status_pulang, a.waktu_pulang, 
+                a.latitude_pulang, a.longitude_pulang,
+                COALESCE(s.nomor_absen, '-') AS nomor_absen
+            FROM absensi a
+            LEFT JOIN siswa s ON a.siswa_id = s.id
+            ORDER BY a.waktu DESC
+        """)
+
+    absensi = cur.fetchall()
+    conn.close()
+
+    return render_template(
+        'admin/absensi_map.html',
+        absensi=absensi,
+        search_query=search_query,
+        SCHOOL_LAT=SCHOOL_LAT,
+        SCHOOL_LNG=SCHOOL_LNG,
+        RADIUS=RADIUS
+    )
 
 @app.route("/admin/export/excel")
 @login_required
@@ -1492,3 +1495,4 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     debug_mode = os.environ.get('DEBUG', 'False').lower() == 'true'
     app.run(host="0.0.0.0", port=port, debug=debug_mode)
+ 

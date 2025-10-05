@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 
   <style>
-    /* Reset */
+    /* Reset sederhana */
     * {
       margin: 0;
       padding: 0;
@@ -18,210 +18,300 @@
     }
 
     body {
-      background: #f5f5f5;
+      background: #f8f9fa;
       color: #333;
-      padding: 20px;
-      min-height: 100vh;
+      line-height: 1.5;
+      padding: 0; /* Hilangkan padding body untuk full-width */
+    }
+
+    /* Wrapper utama untuk centering dan sinkron */
+    .main-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px; /* Padding samping untuk desktop */
     }
 
     h2 {
       text-align: center;
-      margin-bottom: 30px;
-      font-size: 1.8rem;
-      font-weight: 600;
+      margin-bottom: 15px;
+      font-size: 1.5rem;
+      font-weight: 500;
       color: #333;
+    }
+
+    /* Search form yang menarik, simpel, dan left-aligned */
+    .search-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+    }
+
+    .search-container input[type="text"] {
+      flex: 1;
+      min-width: 250px;
+      padding: 10px 12px;
+      border: 2px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      outline: none;
+    }
+
+    .search-container input[type="text"]:focus {
+      border-color: #007bff;
+      box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+    }
+
+    .search-container input[type="text"]::placeholder {
+      color: #999;
+      font-style: italic;
+    }
+
+    .search-container button {
+      padding: 10px 14px;
+      background: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: background 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .search-container button:hover {
+      background: #0056b3;
+    }
+
+    .search-container button:focus {
+      outline: 2px solid #007bff;
+      outline-offset: 2px;
     }
 
     #map {
       height: 400px;
       width: 100%;
-      margin-bottom: 25px;
-      border-radius: 10px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      margin-bottom: 15px;
       border: 1px solid #ddd;
+      border-radius: 4px;
     }
 
     .table-container {
       background: #fff;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      padding: 15px;
       border: 1px solid #ddd;
+      border-radius: 4px;
       overflow-x: auto;
+      margin-bottom: 20px; /* Tambah bottom untuk closure */
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 700px;
+      min-width: 800px; /* Naikkan sedikit untuk desktop, agar table lebih full */
     }
 
     th, td {
-      padding: 12px 10px;
+      padding: 10px 8px;
       border-bottom: 1px solid #ddd;
       text-align: left;
-      font-size: 0.95rem;
+      font-size: 14px;
     }
 
     th {
       background: #007bff;
       color: white;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+      font-weight: 500;
       font-size: 13px;
-      font-weight: 600;
     }
 
     tr:nth-child(even) {
       background: #f8f9fa;
     }
 
-    tr:hover {
-      background: #e9ecef;
-      transition: background 0.3s ease;
-    }
-
-    a.button {
+    /* Tombol sederhana */
+    .button {
       display: inline-block;
       color: #fff;
-      background: #007bff;
-      padding: 8px 12px;
-      border-radius: 5px;
+      background: #28a745;
+      padding: 6px 10px;
+      border-radius: 4px;
       text-decoration: none;
-      font-size: 0.85rem;
-      font-weight: 600;
-      transition: all 0.3s ease;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+      font-size: 12px;
+      font-weight: 500;
     }
 
-    a.button:hover {
-      background: #0056b3;
-      transform: translateY(-1px);
-      box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+    .button:hover {
+      background: #218838;
     }
 
-    /* Responsive Design */
+    .status-pending {
+      color: #999;
+      font-style: italic;
+    }
+
+    /* Responsive - Sesuaikan untuk mobile */
     @media (max-width: 768px) {
-      body {
-        padding: 15px;
+      .main-container {
+        padding: 10px;
       }
 
       h2 {
-        font-size: 1.5rem;
-        margin-bottom: 20px;
+        font-size: 1.3rem;
+        margin-bottom: 12px;
+      }
+
+      .search-container {
+        justify-content: center;
+        gap: 8px;
+      }
+
+      .search-container input[type="text"] {
+        min-width: auto;
+        width: 100%;
+        max-width: 250px;
       }
 
       #map {
         height: 300px;
-        margin-bottom: 20px;
-      }
-
-      .table-container {
-        padding: 15px;
-      }
-
-      th, td {
-        font-size: 0.85rem;
-        padding: 10px 8px;
-      }
-
-      a.button {
-        padding: 6px 10px;
-        font-size: 0.8rem;
-      }
-    }
-
-    @media (max-width: 480px) {
-      #map {
-        height: 250px;
-      }
-
-      th, td {
-        font-size: 0.8rem;
-        padding: 8px 6px;
+        margin-bottom: 12px;
       }
 
       .table-container {
         padding: 10px;
       }
+
+      th, td {
+        padding: 8px 6px;
+        font-size: 13px;
+      }
+
+      .button {
+        padding: 5px 8px;
+        font-size: 11px;
+      }
+
+      table {
+        min-width: 600px; /* Kurangi di mobile */
+      }
     }
 
-    /* Smooth scroll */
-    html {
-      scroll-behavior: smooth;
+    @media (max-width: 480px) {
+      .search-container {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+      }
+
+      .search-container input[type="text"] {
+        width: 100%;
+      }
+
+      .search-container button {
+        justify-content: center;
+      }
+
+      #map {
+        height: 250px;
+      }
+
+      th, td {
+        font-size: 12px;
+        padding: 6px 4px;
+      }
+
+      table {
+        min-width: 500px; /* Lebih compact di ponsel kecil */
+      }
     }
   </style>
 </head>
 <body>
-  <h2>📋 Data Absensi Siswa + Map</h2>
+  <div class="main-container">
+    <h2>Data Absensi Siswa + Map</h2>
 
-  <div id="map"></div>
-  <div class="table-container">
-    <table>
-      <thead>
-        <tr>
-          <th>No</th>
-          <th>No. Absen</th>
-          <th>Nama</th>
-          <th>Kelas</th>
-          <th>Jurusan</th>
-          <th>Status Masuk</th>
-          <th>Jam Masuk</th>
-          <th>Lokasi Masuk</th>
-          <th>Status Pulang</th>
-          <th>Jam Pulang</th>
-          <th>Lokasi Pulang</th>
-        </tr>
-      </thead>
-      <tbody>
-       {% for a in absensi %}
-      <tr>
-  <td>{{ loop.index }}</td>
-  <td>{{ a[11] }}</td>  <!-- NOMOR ABSEN (index 11) -->
-  <td>{{ a[0] }}</td>   <!-- Nama -->
-  <td>{{ a[1] }}</td>   <!-- Kelas -->
-  <td>{{ a[2] }}</td>   <!-- Jurusan -->
-  <td>{{ a[3] }}</td>   <!-- Status Masuk -->
-  <td>{{ a[4] }}</td>   <!-- Waktu Masuk -->
-  <td>
-    {% if a[5] and a[6] %}
-      <a class="button" href="#" onclick="focusMarker({{ loop.index0 }})">📍 Lihat Masuk</a>
-    {% else %}
-      -
-    {% endif %}
-  </td>
-  <td>
-    {% if a[7] %}
-      {{ a[7] }}
-    {% else %}
-      <span style="color:#999;">Belum Pulang</span>
-    {% endif %}
-  </td>
-  <td>
-    {% if a[8] %}
-      {{ a[8] }}
-    {% else %}
-      <span style="color:#999;">-</span>
-    {% endif %}
-  </td>
-  <td>
-    {% if a[9] and a[10] %}
-      <a class="button" href="#" onclick="focusMarkerPulang({{ loop.index0 }})">📍 Lihat Pulang</a>
-    {% else %}
-      -
-    {% endif %}
-  </td>
-      </tr>
-      {% endfor %}
-      </tbody>
-    </table>
+    <div class="search-container">
+      <form method="get" action="{{ url_for('admin_absensi_map') }}">
+        <input type="text" name="q" value="{{ search_query or '' }}" 
+               placeholder="🔍 Cari nama | Kelas | Jurusan | No Absen" 
+               aria-label="Cari data absensi">
+        <button type="submit">🔍 Cari</button>
+      </form>
+    </div>
+
+    <div id="map"></div>
+    
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>No</th>
+            <th>No. Absen</th>
+            <th>Nama</th>
+            <th>Kelas</th>
+            <th>Jurusan</th>
+            <th>Status Masuk</th>
+            <th>Jam Masuk</th>
+            <th>Lokasi Masuk</th>
+            <th>Status Pulang</th>
+            <th>Jam Pulang</th>
+            <th>Lokasi Pulang</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in absensi %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ a[11] }}</td>  <!-- NOMOR ABSEN (index 11) -->
+            <td>{{ a[0] }}</td>   <!-- Nama -->
+            <td>{{ a[1] }}</td>   <!-- Kelas -->
+            <td>{{ a[2] }}</td>   <!-- Jurusan -->
+            <td>{{ a[3] }}</td>   <!-- Status Masuk -->
+            <td>{{ a[4] }}</td>   <!-- Waktu Masuk -->
+            <td>
+              {% if a[5] and a[6] %}
+                <a class="button" href="#" onclick="focusMarker({{ loop.index0 }})">Lihat Masuk</a>
+              {% else %}
+                -
+              {% endif %}
+            </td>
+            <td>
+              {% if a[7] %}
+                {{ a[7] }}
+              {% else %}
+                <span class="status-pending">Belum Pulang</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if a[8] %}
+                {{ a[8] }}
+              {% else %}
+                <span class="status-pending">-</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if a[9] and a[10] %}
+                <a class="button" href="#" onclick="focusMarkerPulang({{ loop.index0 }})">Lihat Pulang</a>
+              {% else %}
+                -
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <!-- // Replace bagian script di absensi_map.html -->
-<script>
+  <script>
     var map = L.map('map').setView([{{ SCHOOL_LAT }}, {{ SCHOOL_LNG }}], 14);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -229,10 +319,10 @@
     }).addTo(map);
 
     var schoolMarker = L.marker([{{ SCHOOL_LAT }}, {{ SCHOOL_LNG }}])
-    .addTo(map)
-    .bindPopup("<b>📍 SMKN 9 Bekasi</b><br>Area absensi utama");
+      .addTo(map)
+      .bindPopup("<b>SMKN 9 Bekasi</b><br>Area absensi utama");
 
-    // Lingkaran radius
+    // Lingkaran radius sederhana
     var schoolCircle = L.circle([{{ SCHOOL_LAT }}, {{ SCHOOL_LNG }}], {
       radius: {{ RADIUS|default(15) }},
       color: "red",
