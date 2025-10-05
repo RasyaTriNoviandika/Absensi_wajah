@@ -223,6 +223,8 @@ def auto_migrate_database():
         
     except Exception as e:
         print(f"❌ Error saat migration: {e}")
+        if conn:
+            conn.close()
         
 def cek_kolom_absensi_pulang():
     conn = sqlite3.connect(DB_NAME)
@@ -760,6 +762,11 @@ def absen():
         print(f"\n🎉 ABSENSI BERHASIL DISIMPAN")
         print(f"{'='*50}\n")
 
+        session['siswa_id'] = siswa['id']
+        session['siswa_nama'] = siswa['nama']
+        session['siswa_kelas'] = siswa['kelas']
+        session['siswa_jurusan'] = siswa['jurusan']
+
         return jsonify({
             "success": True,
             "redirect": url_for("absensi_user"),
@@ -890,37 +897,30 @@ def check_registered():
 # Update route /absensi di app.py dengan query ini:
 @app.route("/absensi")
 def absensi_user():
-    """Tabel absensi untuk user - dengan data pulang dan nomor absen"""
+    """Tabel absensi untuk user - hanya tampilkan absensinya sendiri"""
+    if 'siswa_id' not in session:
+        flash("Silakan lakukan absensi terlebih dahulu untuk melihat data Anda.", "warning")
+        return redirect(url_for("index"))
+
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
-    
-    # Cek dulu apakah kolom status_pulang ada
-    cur.execute("PRAGMA table_info(absensi)")
-    columns = [col[1] for col in cur.fetchall()]
-    
-    if 'status_pulang' in columns:
-        # Jika kolom sudah ada, pakai query lengkap dengan JOIN
-        cur.execute("""
-            SELECT a.nama, a.kelas, a.jurusan, a.status, a.waktu, 
-                   a.status_pulang, a.waktu_pulang,
-                   COALESCE(s.nomor_absen, '-') as nomor_absen
-            FROM absensi a
-            LEFT JOIN siswa s ON a.siswa_id = s.id
-            ORDER BY a.waktu DESC
-        """)
-    else:
-        # Jika kolom belum ada (fallback)
-        cur.execute("""
-            SELECT a.nama, a.kelas, a.jurusan, a.status, a.waktu, 
-                   NULL as status_pulang, NULL as waktu_pulang,
-                   COALESCE(s.nomor_absen, '-') as nomor_absen
-            FROM absensi a
-            LEFT JOIN siswa s ON a.siswa_id = s.id
-            ORDER BY a.waktu DESC
-        """)
-    
+
+    # Ambil hanya absensi milik siswa ini
+    cur.execute("""
+        SELECT 
+            a.nama, a.kelas, a.jurusan, 
+            COALESCE(s.nomor_absen, '-') as nomor_absen,
+            a.status, a.waktu,
+            a.status_pulang, a.waktu_pulang
+        FROM absensi a
+        LEFT JOIN siswa s ON a.siswa_id = s.id
+        WHERE a.siswa_id = ?
+        ORDER BY a.waktu DESC
+    """, (session['siswa_id'],))
+
     absensi = cur.fetchall()
     conn.close()
+
     return render_template("user/absensi.html", absensi=absensi)
 
 # ============= ROUTE ABSEN PULANG =============

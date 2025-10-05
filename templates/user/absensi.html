@@ -275,41 +275,41 @@
             <th>Jam Pulang</th>
         </tr>
     </thead>
-    <tbody>
-        {% for a in absensi %}
+  <tbody>
+    {% for a in absensi %}
 <tr>
   <td data-label="No">{{ loop.index }}</td>
-  <td data-label="No. Absen">{{ a[7] }}</td>  <!-- NOMOR ABSEN -->
+  <td data-label="No. Absen">{{ a[3] }}</td>  <!-- INDEX 3 = nomor_absen -->
   <td data-label="Nama">{{ a[0] }}</td>
   <td data-label="Kelas">{{ a[1] }}</td>
   <td data-label="Jurusan">{{ a[2] }}</td>
   <td data-label="Status Masuk">
-    {% if "HADIR" in a[3] %}
-      <span class="status-badge status-hadir">{{ a[3] }}</span>
-    {% elif "TERLAMBAT" in a[3] or "DILUAR AREA" in a[3] %}
-      <span class="status-badge status-terlambat">{{ a[3] }}</span>
+    {% if "HADIR" in a[4] %}
+      <span class="status-badge status-hadir">{{ a[4] }}</span>
+    {% elif "TERLAMBAT" in a[4] or "DILUAR AREA" in a[4] %}
+      <span class="status-badge status-terlambat">{{ a[4] }}</span>
     {% else %}
-      <span class="status-badge status-alpha">{{ a[3] }}</span>
+      <span class="status-badge status-alpha">{{ a[4] }}</span>
     {% endif %}
   </td>
-  <td data-label="Waktu Masuk">{{ a[4] }}</td>
+  <td data-label="Waktu Masuk">{{ a[5] }}</td>
   <td data-label="Status Pulang">
-    {% if a[5] %}
-      <span class="status-badge status-hadir">{{ a[5] }}</span>
+    {% if a[6] %}
+      <span class="status-badge status-hadir">{{ a[6] }}</span>
     {% else %}
       <span style="color:#999;">Belum Pulang</span>
     {% endif %}
   </td>
   <td data-label="Waktu Pulang">
-    {% if a[6] %}
-      {{ a[6] }}
+    {% if a[7] %}
+      {{ a[7] }}
     {% else %}
       <span style="color:#999;">-</span>
     {% endif %}
   </td>
 </tr>
 {% endfor %}
-    </tbody>
+</tbody>
 </table>
         {% else %}
         <div class="no-data">
