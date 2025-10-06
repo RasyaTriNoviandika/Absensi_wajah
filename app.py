@@ -43,7 +43,7 @@ app.config['SESSION_TYPE'] = 'filesystem'
 # ---------------- Konstanta Default ----------------
 SCHOOL_LAT = -6.2704913253598
 SCHOOL_LNG = 106.96107261359252
-RADIUS = 15  
+RADIUS = 100
 
 DB_NAME = "database.db"
 FACES_DIR = "faces"
@@ -127,85 +127,85 @@ def buat_admin_default():
     
     conn.close()
 
-# @app.route("/generate_dummy")
-# @login_required
-# def generate_dummy():
-#     """Generate data dummy untuk testing analytics"""
-#     import random
+@app.route("/generate_dummy")
+@login_required
+def generate_dummy():
+    """Generate data dummy untuk testing analytics"""
+    import random
     
-#     conn = sqlite3.connect(DB_NAME)
-#     cur = conn.cursor()
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
     
-#     nama_depan = ["Ahmad", "Budi", "Cahya", "Dani", "Eka", "Fajar", "Gita", "Hadi",
-#                   "Indra", "Joko", "Kartika", "Lina", "Maya", "Nur", "Oktavia", "Putra"]
-#     nama_belakang = ["Pratama", "Sari", "Wijaya", "Kusuma", "Permana", "Putri", 
-#                      "Santoso", "Ramadhan", "Hidayat", "Lestari"]
+    nama_depan = ["Ahmad", "Budi", "Cahya", "Dani", "Eka", "Fajar", "Gita", "Hadi",
+                  "Indra", "Joko", "Kartika", "Lina", "Maya", "Nur", "Oktavia", "Putra"]
+    nama_belakang = ["Pratama", "Sari", "Wijaya", "Kusuma", "Permana", "Putri", 
+                     "Santoso", "Ramadhan", "Hidayat", "Lestari"]
     
-#     kelas_list = ["X", "XI", "XII"]
-#     jurusan_list = ["SIJA1", "SIJA2", "DKV1", "DKV2", "PB1", "PB2"]
+    kelas_list = ["X", "XI", "XII"]
+    jurusan_list = ["SIJA1", "SIJA2", "DKV1", "DKV2", "PB1", "PB2"]
     
-#     siswa_ids = []
+    siswa_ids = []
     
-#     # Generate 100 siswa
-#     for i in range(1, 101):
-#         nama = f"{random.choice(nama_depan)} {random.choice(nama_belakang)}"
-#         kelas = random.choice(kelas_list)
-#         jurusan = random.choice(jurusan_list)
-#         nomor_absen = f"{kelas}-{jurusan}-{i:03d}"
+    # Generate 100 siswa
+    for i in range(1, 21):
+        nama = f"{random.choice(nama_depan)} {random.choice(nama_belakang)}"
+        kelas = random.choice(kelas_list)
+        jurusan = random.choice(jurusan_list)
+        nomor_absen = f"{kelas}-{jurusan}-{i:03d}"
         
-#         cur.execute("""
-#             INSERT INTO siswa (nama, kelas, jurusan, foto_path, encoding, nomor_absen)
-#             VALUES (?, ?, ?, ?, ?, ?)
-#         """, (nama, kelas, jurusan, "faces/dummy.jpg", "[]", nomor_absen))
+        cur.execute("""
+            INSERT INTO siswa (nama, kelas, jurusan, foto_path, encoding, nomor_absen)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (nama, kelas, jurusan, "faces/dummy.jpg", "[]", nomor_absen))
         
-#         siswa_ids.append((cur.lastrowid, nama, kelas, jurusan))
+        siswa_ids.append((cur.lastrowid, nama, kelas, jurusan))
     
-#     conn.commit()
+    conn.commit()
     
-#     # Generate absensi 30 hari terakhir
-#     now = datetime.utcnow() + timedelta(hours=7)
+    # Generate absensi 30 hari terakhir
+    now = datetime.utcnow() + timedelta(hours=7)
     
-#     for day in range(30):
-#         tanggal = now - timedelta(days=day)
+    for day in range(30):
+        tanggal = now - timedelta(days=day)
         
-#         if tanggal.weekday() >= 5:  # Skip weekend
-#             continue
+        if tanggal.weekday() >= 5:  # Skip weekend
+            continue
         
-#         jumlah_hadir = int(len(siswa_ids) * random.uniform(0.70, 0.90))
-#         siswa_hadir = random.sample(siswa_ids, jumlah_hadir)
+        jumlah_hadir = int(len(siswa_ids) * random.uniform(0.70, 0.90))
+        siswa_hadir = random.sample(siswa_ids, jumlah_hadir)
         
-#         for sid, nama, kelas, jurusan in siswa_hadir:
-#             jam = random.randint(6, 8)
-#             menit = random.randint(0, 59)
-#             waktu_absen = tanggal.replace(hour=jam, minute=menit, second=0)
+        for sid, nama, kelas, jurusan in siswa_hadir:
+            jam = random.randint(6, 8)
+            menit = random.randint(0, 59)
+            waktu_absen = tanggal.replace(hour=jam, minute=menit, second=0)
             
-#             status = "HADIR" if jam < 7 or (jam == 7 and menit <= 30) else "TERLAMBAT"
+            status = "HADIR" if jam < 7 or (jam == 7 and menit <= 30) else "TERLAMBAT"
             
-#             lat = -6.2704913253598 + random.uniform(-0.001, 0.001)
-#             lng = 106.96107261359252 + random.uniform(-0.001, 0.001)
+            lat = -6.2704913253598 + random.uniform(-0.001, 0.001)
+            lng = 106.96107261359252 + random.uniform(-0.001, 0.001)
             
-#             cur.execute("""
-#                 INSERT INTO absensi (siswa_id, nama, kelas, jurusan, latitude, longitude, status, waktu)
-#                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-#             """, (sid, nama, kelas, jurusan, lat, lng, status, waktu_absen))
+            cur.execute("""
+                INSERT INTO absensi (siswa_id, nama, kelas, jurusan, latitude, longitude, status, waktu)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (sid, nama, kelas, jurusan, lat, lng, status, waktu_absen))
             
-#             # 80% absen pulang
-#             if random.random() < 0.80:
-#                 jam_pulang = random.randint(15, 16)
-#                 menit_pulang = random.randint(0, 59)
-#                 waktu_pulang = tanggal.replace(hour=jam_pulang, minute=menit_pulang, second=0)
+            # 80% absen pulang
+            if random.random() < 0.80:
+                jam_pulang = random.randint(15, 16)
+                menit_pulang = random.randint(0, 59)
+                waktu_pulang = tanggal.replace(hour=jam_pulang, minute=menit_pulang, second=0)
                 
-#                 cur.execute("""
-#                     UPDATE absensi 
-#                     SET waktu_pulang = ?, status_pulang = ?, latitude_pulang = ?, longitude_pulang = ?
-#                     WHERE id = ?
-#                 """, (waktu_pulang, "PULANG TEPAT WAKTU", lat, lng, cur.lastrowid))
+                cur.execute("""
+                    UPDATE absensi 
+                    SET waktu_pulang = ?, status_pulang = ?, latitude_pulang = ?, longitude_pulang = ?
+                    WHERE id = ?
+                """, (waktu_pulang, "PULANG TEPAT WAKTU", lat, lng, cur.lastrowid))
     
-#     conn.commit()
-#     conn.close()
+    conn.commit()
+    conn.close()
     
-#     flash("Data dummy berhasil dibuat: 100 siswa & ~2000 absensi (30 hari)", "success")
-#     return redirect(url_for("admin_analytics"))
+    flash("Data dummy berhasil dibuat: 20 siswa & ~600 absensi (30 hari)", "success")
+    return redirect(url_for("admin_analytics"))
 
 # ---------------- Database ----------------
 def buat_tabel():
@@ -1005,7 +1005,7 @@ def absensi_user():
     return render_template("user/absensi.html", absensi=absensi)
 
 # ============= ROUTE ABSEN PULANG =============
-@app.route("/absen_pulang", methods=["POST"])
+@app.route("/absen_pulang", methods=["GET"])
 def absen_pulang():
     try:
         file = request.files["foto"]
@@ -1048,14 +1048,14 @@ def absen_pulang():
         tanggal_hari_ini = waktu_lokal.date()
         jam_sekarang = waktu_lokal.time()
 
-        # ✅ VALIDASI JAM PULANG (hanya bisa absen pulang jam 15:00 - 17:00)
-        jam_mulai_pulang = datetime.strptime("10:00", "%H:%M").time()
-        jam_akhir_pulang = datetime.strptime("17:00", "%H:%M").time()
+        # ✅ VALIDASI JAM PULANG (hanya bisa absen pulang jam 15:00 - 16:00)
+        jam_mulai_pulang = datetime.strptime("15:00", "%H:%M").time()
+        jam_akhir_pulang = datetime.strptime("16:00", "%H:%M").time()
 
         if not (jam_mulai_pulang <= jam_sekarang <= jam_akhir_pulang):
             return jsonify({
                 "success": False, 
-                "message": f"Absen pulang hanya bisa dilakukan antara jam 15:00 - 17:00 WIB. Sekarang jam {waktu_lokal.strftime('%H:%M')} WIB."
+                "message": f"Absen pulang hanya bisa dilakukan antara jam 15:00 - 16:00 WIB. Sekarang jam {waktu_lokal.strftime('%H:%M')} WIB."
             })
 
         conn = sqlite3.connect(DB_NAME)
@@ -1111,18 +1111,18 @@ def absen_pulang():
 
 @app.route("/absen_pulang_harian", methods=["GET"])
 def absen_pulang_harian():
-    """Halaman absensi pulang - hanya bisa diakses jam 15:00-17:00"""
+    """Halaman absensi pulang - hanya bisa diakses jam 15:00-16:00"""
     
     # Waktu lokal WIB
     waktu_lokal = datetime.utcnow() + timedelta(hours=7)
     jam_sekarang = waktu_lokal.time()
     
     # Validasi jam
-    jam_mulai_pulang = datetime.strptime("10:00", "%H:%M").time()
-    jam_akhir_pulang = datetime.strptime("17:00", "%H:%M").time()
+    jam_mulai_pulang = datetime.strptime("15:00", "%H:%M").time()
+    jam_akhir_pulang = datetime.strptime("16:00", "%H:%M").time()
     
     if not (jam_mulai_pulang <= jam_sekarang <= jam_akhir_pulang):
-        flash(f"⏰ Absen pulang hanya bisa dilakukan antara jam 15:00 - 17:00 WIB. Sekarang jam {waktu_lokal.strftime('%H:%M')} WIB.", "warning")
+        flash(f"⏰ Absen pulang hanya bisa dilakukan jam 15:00 - 16:00 WIB. Sekarang jam {waktu_lokal.strftime('%H:%M')} WIB.", "warning")
         return redirect(url_for("index"))
     
     # Cek apakah sudah ada siswa terdaftar
@@ -1724,4 +1724,3 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     debug_mode = os.environ.get('DEBUG', 'False').lower() == 'true'
     app.run(host="0.0.0.0", port=port, debug=debug_mode)
- 

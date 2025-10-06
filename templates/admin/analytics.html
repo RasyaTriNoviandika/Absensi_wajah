@@ -51,8 +51,14 @@
         }
         .table-card h3 { margin-bottom:15px; color:#333; font-size:1.1rem; }
         
-        table { width:100%; border-collapse:collapse; }
-        th, td { padding:12px; text-align:left; border-bottom:1px solid #ddd; font-size:14px; }
+        .table-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+            margin-bottom: 10px;
+        }
+        
+        table { width:100%; border-collapse:collapse; min-width: 600px; } /* Min-width to ensure scroll on small screens */
+        th, td { padding:12px; text-align:left; border-bottom:1px solid #ddd; font-size:14px; white-space: nowrap; } /* Prevent text wrapping for better mobile view */
         th { background:#f8f9fa; font-weight:600; }
         tr:hover { background:#f8f9fa; }
         
@@ -73,13 +79,17 @@
             .chart-grid { grid-template-columns:1fr; }
             h1 { font-size:1.5rem; }
             .stat-number { font-size:2rem; }
+            table { min-width: 500px; } /* Adjust min-width for tablets */
+            th, td { padding:10px; font-size:13px; }
         }
         
         @media (max-width:480px) {
             body { padding:10px; }
             .stats-grid { grid-template-columns:1fr; }
-            table { font-size:12px; }
-            th, td { padding:8px; }
+            .table-wrapper { margin: 0 -10px 10px -10px; } /* Extend wrapper to edges inside card for full width scroll */
+            table { min-width: 400px; } /* Smaller min-width for phones */
+            th, td { padding:8px; font-size:12px; }
+            .table-card { padding:15px; } /* Reduce card padding on very small screens */
         }
     </style>
 </head>
@@ -147,34 +157,36 @@
         {% if top_students %}
         <div class="table-card">
             <h3>🏆 Top 10 Siswa Terajin (30 Hari Terakhir)</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Rank</th>
-                        <th>No. Absen</th>
-                        <th>Nama</th>
-                        <th>Kelas</th>
-                        <th>Jurusan</th>
-                        <th>Total Hadir</th>
-                        <th>Tepat Waktu</th>
-                        <th>Terlambat</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for student in top_students %}
-                    <tr>
-                        <td><strong>{{ loop.index }}</strong></td>
-                        <td>{{ student.nomor_absen }}</td>
-                        <td>{{ student.nama }}</td>
-                        <td>{{ student.kelas }}</td>
-                        <td>{{ student.jurusan }}</td>
-                        <td><span class="badge badge-success">{{ student.total_hadir }}</span></td>
-                        <td>{{ student.tepat_waktu }}</td>
-                        <td>{{ student.terlambat }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>No. Absen</th>
+                            <th>Nama</th>
+                            <th>Kelas</th>
+                            <th>Jurusan</th>
+                            <th>Total Hadir</th>
+                            <th>Tepat Waktu</th>
+                            <th>Terlambat</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in top_students %}
+                        <tr>
+                            <td><strong>{{ loop.index }}</strong></td>
+                            <td>{{ student.nomor_absen }}</td>
+                            <td>{{ student.nama }}</td>
+                            <td>{{ student.kelas }}</td>
+                            <td>{{ student.jurusan }}</td>
+                            <td><span class="badge badge-success">{{ student.total_hadir }}</span></td>
+                            <td>{{ student.tepat_waktu }}</td>
+                            <td>{{ student.terlambat }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
         {% endif %}
         
@@ -182,28 +194,30 @@
         {% if most_late %}
         <div class="table-card">
             <h3>⚠️ Siswa Paling Sering Terlambat (30 Hari Terakhir)</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>No. Absen</th>
-                        <th>Nama</th>
-                        <th>Kelas</th>
-                        <th>Jurusan</th>
-                        <th>Total Terlambat</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for student in most_late %}
-                    <tr>
-                        <td>{{ student.nomor_absen }}</td>
-                        <td>{{ student.nama }}</td>
-                        <td>{{ student.kelas }}</td>
-                        <td>{{ student.jurusan }}</td>
-                        <td><span class="badge badge-warning">{{ student.total_terlambat }}</span></td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>No. Absen</th>
+                            <th>Nama</th>
+                            <th>Kelas</th>
+                            <th>Jurusan</th>
+                            <th>Total Terlambat</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in most_late %}
+                        <tr>
+                            <td>{{ student.nomor_absen }}</td>
+                            <td>{{ student.nama }}</td>
+                            <td>{{ student.kelas }}</td>
+                            <td>{{ student.jurusan }}</td>
+                            <td><span class="badge badge-warning">{{ student.total_terlambat }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
         {% endif %}
         
@@ -211,81 +225,87 @@
         {% if absent_today %}
         <div class="table-card">
             <h3>❌ Siswa Belum Absen Hari Ini ({{ absent_today|length }} Siswa)</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>No. Absen</th>
-                        <th>Nama</th>
-                        <th>Kelas</th>
-                        <th>Jurusan</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for student in absent_today %}
-                    <tr>
-                        <td>{{ student.nomor_absen }}</td>
-                        <td>{{ student.nama }}</td>
-                        <td>{{ student.kelas }}</td>
-                        <td>{{ student.jurusan }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>No. Absen</th>
+                            <th>Nama</th>
+                            <th>Kelas</th>
+                            <th>Jurusan</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in absent_today %}
+                        <tr>
+                            <td>{{ student.nomor_absen }}</td>
+                            <td>{{ student.nama }}</td>
+                            <td>{{ student.kelas }}</td>
+                            <td>{{ student.jurusan }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
         {% endif %}
         
         <!-- Class Statistics -->
         <div class="table-card">
             <h3>📚 Statistik per Kelas (Hari Ini)</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Kelas</th>
-                        <th>Total Siswa</th>
-                        <th>Hadir</th>
-                        <th>Alpha</th>
-                        <th>Persentase</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for stat in class_stats %}
-                    <tr>
-                        <td><strong>{{ stat.kelas }}</strong></td>
-                        <td>{{ stat.total }}</td>
-                        <td><span class="badge badge-success">{{ stat.hadir }}</span></td>
-                        <td><span class="badge badge-danger">{{ stat.alpha }}</span></td>
-                        <td>{{ stat.percentage }}%</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Kelas</th>
+                            <th>Total Siswa</th>
+                            <th>Hadir</th>
+                            <th>Alpha</th>
+                            <th>Persentase</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in class_stats %}
+                        <tr>
+                            <td><strong>{{ stat.kelas }}</strong></td>
+                            <td>{{ stat.total }}</td>
+                            <td><span class="badge badge-success">{{ stat.hadir }}</span></td>
+                            <td><span class="badge badge-danger">{{ stat.alpha }}</span></td>
+                            <td>{{ stat.percentage }}%</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
         
         <!-- Jurusan Statistics -->
         <div class="table-card">
             <h3>🎓 Statistik per Jurusan (Hari Ini)</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Jurusan</th>
-                        <th>Total Siswa</th>
-                        <th>Hadir</th>
-                        <th>Alpha</th>
-                        <th>Persentase</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for stat in jurusan_stats %}
-                    <tr>
-                        <td><strong>{{ stat.jurusan }}</strong></td>
-                        <td>{{ stat.total }}</td>
-                        <td><span class="badge badge-success">{{ stat.hadir }}</span></td>
-                        <td><span class="badge badge-danger">{{ stat.alpha }}</span></td>
-                        <td>{{ stat.percentage }}%</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Jurusan</th>
+                            <th>Total Siswa</th>
+                            <th>Hadir</th>
+                            <th>Alpha</th>
+                            <th>Persentase</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in jurusan_stats %}
+                        <tr>
+                            <td><strong>{{ stat.jurusan }}</strong></td>
+                            <td>{{ stat.total }}</td>
+                            <td><span class="badge badge-success">{{ stat.hadir }}</span></td>
+                            <td><span class="badge badge-danger">{{ stat.alpha }}</span></td>
+                            <td>{{ stat.percentage }}%</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 

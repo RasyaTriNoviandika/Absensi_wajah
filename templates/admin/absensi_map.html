@@ -7,6 +7,8 @@
 
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
 
   <style>
     /* Reset sederhana */
@@ -94,6 +96,39 @@
       outline-offset: 2px;
     }
 
+    /* Tombol reset ke lokasi sekolah */
+    .map-controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .reset-school-btn {
+      padding: 8px 12px;
+      background: #28a745;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: background 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .reset-school-btn:hover {
+      background: #218838;
+    }
+
+    .reset-school-btn:focus {
+      outline: 2px solid #28a745;
+      outline-offset: 2px;
+    }
+
     #map {
       height: 400px;
       width: 100%;
@@ -178,6 +213,10 @@
         max-width: 250px;
       }
 
+      .map-controls {
+        justify-content: center;
+      }
+
       #map {
         height: 300px;
         margin-bottom: 12px;
@@ -217,6 +256,17 @@
         justify-content: center;
       }
 
+      .map-controls {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .reset-school-btn {
+        width: 100%;
+        max-width: 200px;
+        justify-content: center;
+      }
+
       #map {
         height: 250px;
       }
@@ -243,6 +293,11 @@
                aria-label="Cari data absensi">
         <button type="submit">🔍 Cari</button>
       </form>
+    </div>
+
+    <!-- Kontrol Map: Tombol reset ke lokasi sekolah -->
+    <div class="map-controls">
+      <button class="reset-school-btn" onclick="resetToSchool()">📍 Fokus ke Lokasi Sekolah</button>
     </div>
 
     <div id="map"></div>
@@ -311,104 +366,132 @@
 
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <script>
-    var map = L.map('map').setView([{{ SCHOOL_LAT }}, {{ SCHOOL_LNG }}], 14);
+  <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+ <script>
+  // Inisialisasi map dengan fokus awal ke lokasi sekolah
+  var map = L.map('map').setView([{{ SCHOOL_LAT }}, {{ SCHOOL_LNG }}], 14);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
 
-    var schoolMarker = L.marker([{{ SCHOOL_LAT }}, {{ SCHOOL_LNG }}])
-      .addTo(map)
-      .bindPopup("<b>SMKN 9 Bekasi</b><br>Area absensi utama");
+  // Marker sekolah dengan popup
+  var schoolMarker = L.marker([{{ SCHOOL_LAT }}, {{ SCHOOL_LNG }}])
+    .addTo(map)
+    .bindPopup("<b>SMKN 9 Bekasi</b><br>Area absensi utama");
 
-    // Lingkaran radius sederhana
-    var schoolCircle = L.circle([{{ SCHOOL_LAT }}, {{ SCHOOL_LNG }}], {
-      radius: {{ RADIUS|default(15) }},
-      color: "red",
-      fillColor: "#f03",
-      fillOpacity: 0.2
-    }).addTo(map);
+  // Lingkaran radius sederhana di sekitar sekolah
+  var schoolCircle = L.circle([{{ SCHOOL_LAT }}, {{ SCHOOL_LNG }}], {
+    radius: {{ RADIUS|default(15) }},
+    color: "red",
+    fillColor: "#f03",
+    fillOpacity: 0.2
+  }).addTo(map);
 
-    var absensiData = {{ absensi|tojson }};
-    var markersMasuk = [];
-    var markersPulang = [];
+  var absensiData = {{ absensi|tojson }};
+  var markersMasuk = [];
+  var markersPulang = [];
 
-    absensiData.forEach(function(a, i){
-      var lat = a[5];  // latitude masuk
-      var lng = a[6];  // longitude masuk
-      var latPulang = a[9];  // latitude pulang
-      var lngPulang = a[10]; // longitude pulang
-      
-      // Marker absen masuk (biru)
-      if(lat && lng){
-        var markerMasuk = L.marker([lat, lng], {
-          icon: L.icon({
-            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-            iconSize: [25, 41],
-            iconAnchor: [12, 41],
-            popupAnchor: [1, -34],
-            shadowSize: [41, 41]
-          })
-        }).addTo(map);
-        
-        markerMasuk.bindPopup(
-          `<b>${a[0]}</b><br>
-          ${a[1]} - ${a[2]}<br>
-          <strong>MASUK:</strong> ${a[3]}<br>
-          Waktu: ${a[4]}`
-        );
-        markersMasuk.push(markerMasuk);
-      }
-      
-      // Marker absen pulang (hijau)
-      if(latPulang && lngPulang){
-        var markerPulang = L.marker([latPulang, lngPulang], {
-          icon: L.icon({
-            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-            iconSize: [25, 41],
-            iconAnchor: [12, 41],
-            popupAnchor: [1, -34],
-            shadowSize: [41, 41]
-          })
-        }).addTo(map);
-        
-        markerPulang.bindPopup(
-          `<b>${a[0]}</b><br>
-          ${a[1]} - ${a[2]}<br>
-          <strong>PULANG:</strong> ${a[7]}<br>
-          Waktu: ${a[8]}`
-        );
-        markersPulang.push(markerPulang);
-      }
-    });
+  // Buat cluster group
+  var clusterGroup = L.markerClusterGroup();
 
-    // Zoom agar semua marker terlihat
-    var allMarkers = [...markersMasuk, ...markersPulang, schoolMarker].filter(m => m !== null);
-    if (allMarkers.length > 0) {
-      var group = L.featureGroup(allMarkers);
-      map.fitBounds(group.getBounds().pad(0.2));
-    }
-
-    // Fungsi fokus marker masuk
-    function focusMarker(index){
-      var marker = markersMasuk[index];
-      if(marker){
-        map.setView(marker.getLatLng(), 17);
-        marker.openPopup();
-      }
+  // Tambahkan marker untuk setiap absensi
+  absensiData.forEach(function(a, i){
+    var lat = a[5];  // latitude masuk
+    var lng = a[6];  // longitude masuk
+    var latPulang = a[9];  // latitude pulang
+    var lngPulang = a[10]; // longitude pulang
+    
+    // Marker absen masuk (biru)
+    if(lat && lng){
+      var markerMasuk = L.marker([lat, lng], {
+        icon: L.icon({
+          iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+          shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+          iconSize: [25, 41],
+          iconAnchor: [12, 41],
+          popupAnchor: [1, -34],
+          shadowSize: [41, 41]
+        })
+      }).bindPopup(
+        `<b>${a[0]}</b><br>
+        ${a[1]} - ${a[2]}<br>
+        <strong>MASUK:</strong> ${a[3]}<br>
+        Waktu: ${a[4]}`
+      );
+      clusterGroup.addLayer(markerMasuk);
+      markersMasuk.push(markerMasuk);
     }
     
-    // Fungsi fokus marker pulang
-    function focusMarkerPulang(index){
-      var marker = markersPulang[index];
-      if(marker){
-        map.setView(marker.getLatLng(), 17);
-        marker.openPopup();
-      }
+    // Marker absen pulang (hijau)
+    if(latPulang && lngPulang){
+      var markerPulang = L.marker([latPulang, lngPulang], {
+        icon: L.icon({
+          iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+          shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+          iconSize: [25, 41],
+          iconAnchor: [12, 41],
+          popupAnchor: [1, -34],
+          shadowSize: [41, 41]
+        })
+      }).bindPopup(
+        `<b>${a[0]}</b><br>
+        ${a[1]} - ${a[2]}<br>
+        <strong>PULANG:</strong> ${a[7]}<br>
+        Waktu: ${a[8]}`
+      );
+      clusterGroup.addLayer(markerPulang);
+      markersPulang.push(markerPulang);
     }
-  </script>
+  });
+
+  // Tambahkan cluster ke map
+  map.addLayer(clusterGroup);
+
+  // Fungsi untuk zoom/fit bounds ke semua marker
+  function fitToAllMarkers() {
+    if (clusterGroup.getLayers().length > 0) {
+      map.fitBounds(clusterGroup.getBounds().pad(0.2));
+    } else {
+      map.setView([{{ SCHOOL_LAT }}, {{ SCHOOL_LNG }}], 14);
+      schoolMarker.openPopup();
+    }
+  }
+
+  map.whenReady(fitToAllMarkers);
+
+  // Fungsi reset/fokus ke lokasi sekolah
+  function resetToSchool() {
+    map.setView([{{ SCHOOL_LAT }}, {{ SCHOOL_LNG }}], 14);
+    schoolMarker.openPopup();
+  }
+
+  // Fungsi fokus marker masuk
+  function focusMarker(index){
+    var marker = markersMasuk[index];
+    if(marker){
+      map.setView(marker.getLatLng(), 17);
+      marker.openPopup();
+    } else {
+      alert('Marker tidak ditemukan atau data tidak lengkap.');
+    }
+  }
+  
+  // Fungsi fokus marker pulang
+  function focusMarkerPulang(index){
+    var marker = markersPulang[index];
+    if(marker){
+      map.setView(marker.getLatLng(), 17);
+      marker.openPopup();
+    } else {
+      alert('Marker tidak ditemukan atau data tidak lengkap.');
+    }
+  }
+
+  // Biar responsive
+  window.addEventListener('resize', function() {
+    map.invalidateSize();
+  });
+</script>
 </body>
 </html>
