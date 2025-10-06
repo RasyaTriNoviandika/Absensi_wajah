@@ -41,9 +41,9 @@ app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_TYPE'] = 'filesystem'
 
 # ---------------- Konstanta Default ----------------
-SCHOOL_LAT = -6.2704913253598
-SCHOOL_LNG = 106.96107261359252
-RADIUS = 100
+SCHOOL_LAT = -6.2706589
+SCHOOL_LNG = 106.9593685
+RADIUS = 50
 
 DB_NAME = "database.db"
 FACES_DIR = "faces"
@@ -132,79 +132,86 @@ def buat_admin_default():
 def generate_dummy():
     """Generate data dummy untuk testing analytics"""
     import random
-    
+    import math
+
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
-    
+
     nama_depan = ["Ahmad", "Budi", "Cahya", "Dani", "Eka", "Fajar", "Gita", "Hadi",
                   "Indra", "Joko", "Kartika", "Lina", "Maya", "Nur", "Oktavia", "Putra"]
     nama_belakang = ["Pratama", "Sari", "Wijaya", "Kusuma", "Permana", "Putri", 
                      "Santoso", "Ramadhan", "Hidayat", "Lestari"]
-    
+
     kelas_list = ["X", "XI", "XII"]
     jurusan_list = ["SIJA1", "SIJA2", "DKV1", "DKV2", "PB1", "PB2"]
-    
+
     siswa_ids = []
-    
-    # Generate 100 siswa
+
+    # Generate 20 siswa
     for i in range(1, 21):
         nama = f"{random.choice(nama_depan)} {random.choice(nama_belakang)}"
         kelas = random.choice(kelas_list)
         jurusan = random.choice(jurusan_list)
         nomor_absen = f"{kelas}-{jurusan}-{i:03d}"
-        
+
         cur.execute("""
             INSERT INTO siswa (nama, kelas, jurusan, foto_path, encoding, nomor_absen)
             VALUES (?, ?, ?, ?, ?, ?)
         """, (nama, kelas, jurusan, "faces/dummy.jpg", "[]", nomor_absen))
-        
+
         siswa_ids.append((cur.lastrowid, nama, kelas, jurusan))
-    
+
     conn.commit()
-    
+
     # Generate absensi 30 hari terakhir
     now = datetime.utcnow() + timedelta(hours=7)
-    
+
     for day in range(30):
         tanggal = now - timedelta(days=day)
-        
+
         if tanggal.weekday() >= 5:  # Skip weekend
             continue
-        
+
         jumlah_hadir = int(len(siswa_ids) * random.uniform(0.70, 0.90))
         siswa_hadir = random.sample(siswa_ids, jumlah_hadir)
-        
+
         for sid, nama, kelas, jurusan in siswa_hadir:
             jam = random.randint(6, 8)
             menit = random.randint(0, 59)
             waktu_absen = tanggal.replace(hour=jam, minute=menit, second=0)
-            
+
             status = "HADIR" if jam < 7 or (jam == 7 and menit <= 30) else "TERLAMBAT"
-            
-            lat = -6.2704913253598 + random.uniform(-0.001, 0.001)
-            lng = 106.96107261359252 + random.uniform(-0.001, 0.001)
-            
+
+            # Random koordinat dalam radius 50m
+            radius_meter = 50
+            offset_lat = random.uniform(-radius_meter/111320, radius_meter/111320)
+            offset_lng = random.uniform(-radius_meter/(111320*math.cos(math.radians(SCHOOL_LAT))), 
+                                        radius_meter/(111320*math.cos(math.radians(SCHOOL_LAT))))
+
+            lat = SCHOOL_LAT + offset_lat
+            lng = SCHOOL_LNG + offset_lng
+
             cur.execute("""
                 INSERT INTO absensi (siswa_id, nama, kelas, jurusan, latitude, longitude, status, waktu)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, (sid, nama, kelas, jurusan, lat, lng, status, waktu_absen))
-            
+
             # 80% absen pulang
             if random.random() < 0.80:
                 jam_pulang = random.randint(15, 16)
                 menit_pulang = random.randint(0, 59)
                 waktu_pulang = tanggal.replace(hour=jam_pulang, minute=menit_pulang, second=0)
-                
+
                 cur.execute("""
                     UPDATE absensi 
                     SET waktu_pulang = ?, status_pulang = ?, latitude_pulang = ?, longitude_pulang = ?
                     WHERE id = ?
                 """, (waktu_pulang, "PULANG TEPAT WAKTU", lat, lng, cur.lastrowid))
-    
+
     conn.commit()
     conn.close()
-    
-    flash("Data dummy berhasil dibuat: 20 siswa & ~600 absensi (30 hari)", "success")
+
+    flash("Data dummy berhasil dibuat: 20 siswa & absensi 30 hari (radius 50m)", "success")
     return redirect(url_for("admin_analytics"))
 
 # ---------------- Database ----------------
@@ -1723,4 +1730,5 @@ def handle_exception(e):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     debug_mode = os.environ.get('DEBUG', 'False').lower() == 'true'
-    app.run(host="0.0.0.0", port=port, debug=debug_mode)
+    # app.run(host="0.0.0.0", port=port, debug=debug_mode)
+    app.run(debug=True)
