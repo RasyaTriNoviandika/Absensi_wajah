@@ -16,6 +16,7 @@ import secrets
 import os
 import numpy as np
 
+
 # ============= KONSTANTA & FUNGSI HELPER HARUS DI ATAS! =============
 SECRET_KEY_FILE = '.secret_key'
 
@@ -125,6 +126,86 @@ def buat_admin_default():
         # print("✅ Admin default dibuat - Username: admin, Password: gurusija")
     
     conn.close()
+
+# @app.route("/generate_dummy")
+# @login_required
+# def generate_dummy():
+#     """Generate data dummy untuk testing analytics"""
+#     import random
+    
+#     conn = sqlite3.connect(DB_NAME)
+#     cur = conn.cursor()
+    
+#     nama_depan = ["Ahmad", "Budi", "Cahya", "Dani", "Eka", "Fajar", "Gita", "Hadi",
+#                   "Indra", "Joko", "Kartika", "Lina", "Maya", "Nur", "Oktavia", "Putra"]
+#     nama_belakang = ["Pratama", "Sari", "Wijaya", "Kusuma", "Permana", "Putri", 
+#                      "Santoso", "Ramadhan", "Hidayat", "Lestari"]
+    
+#     kelas_list = ["X", "XI", "XII"]
+#     jurusan_list = ["SIJA1", "SIJA2", "DKV1", "DKV2", "PB1", "PB2"]
+    
+#     siswa_ids = []
+    
+#     # Generate 100 siswa
+#     for i in range(1, 101):
+#         nama = f"{random.choice(nama_depan)} {random.choice(nama_belakang)}"
+#         kelas = random.choice(kelas_list)
+#         jurusan = random.choice(jurusan_list)
+#         nomor_absen = f"{kelas}-{jurusan}-{i:03d}"
+        
+#         cur.execute("""
+#             INSERT INTO siswa (nama, kelas, jurusan, foto_path, encoding, nomor_absen)
+#             VALUES (?, ?, ?, ?, ?, ?)
+#         """, (nama, kelas, jurusan, "faces/dummy.jpg", "[]", nomor_absen))
+        
+#         siswa_ids.append((cur.lastrowid, nama, kelas, jurusan))
+    
+#     conn.commit()
+    
+#     # Generate absensi 30 hari terakhir
+#     now = datetime.utcnow() + timedelta(hours=7)
+    
+#     for day in range(30):
+#         tanggal = now - timedelta(days=day)
+        
+#         if tanggal.weekday() >= 5:  # Skip weekend
+#             continue
+        
+#         jumlah_hadir = int(len(siswa_ids) * random.uniform(0.70, 0.90))
+#         siswa_hadir = random.sample(siswa_ids, jumlah_hadir)
+        
+#         for sid, nama, kelas, jurusan in siswa_hadir:
+#             jam = random.randint(6, 8)
+#             menit = random.randint(0, 59)
+#             waktu_absen = tanggal.replace(hour=jam, minute=menit, second=0)
+            
+#             status = "HADIR" if jam < 7 or (jam == 7 and menit <= 30) else "TERLAMBAT"
+            
+#             lat = -6.2704913253598 + random.uniform(-0.001, 0.001)
+#             lng = 106.96107261359252 + random.uniform(-0.001, 0.001)
+            
+#             cur.execute("""
+#                 INSERT INTO absensi (siswa_id, nama, kelas, jurusan, latitude, longitude, status, waktu)
+#                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+#             """, (sid, nama, kelas, jurusan, lat, lng, status, waktu_absen))
+            
+#             # 80% absen pulang
+#             if random.random() < 0.80:
+#                 jam_pulang = random.randint(15, 16)
+#                 menit_pulang = random.randint(0, 59)
+#                 waktu_pulang = tanggal.replace(hour=jam_pulang, minute=menit_pulang, second=0)
+                
+#                 cur.execute("""
+#                     UPDATE absensi 
+#                     SET waktu_pulang = ?, status_pulang = ?, latitude_pulang = ?, longitude_pulang = ?
+#                     WHERE id = ?
+#                 """, (waktu_pulang, "PULANG TEPAT WAKTU", lat, lng, cur.lastrowid))
+    
+#     conn.commit()
+#     conn.close()
+    
+#     flash("Data dummy berhasil dibuat: 100 siswa & ~2000 absensi (30 hari)", "success")
+#     return redirect(url_for("admin_analytics"))
 
 # ---------------- Database ----------------
 def buat_tabel():
@@ -1312,6 +1393,153 @@ def admin_absensi_map():
         RADIUS=RADIUS
     )
 
+@app.route("/admin/analytics")
+@login_required
+def admin_analytics():
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    
+    # Stats basic
+    cur.execute("SELECT COUNT(*) FROM siswa")
+    total_siswa = cur.fetchone()[0]
+    
+    today = (datetime.utcnow() + timedelta(hours=7)).date()
+    cur.execute("SELECT COUNT(*) FROM absensi WHERE DATE(waktu) = ?", (today,))
+    absensi_hari_ini = cur.fetchone()[0]
+    
+    cur.execute("SELECT COUNT(*) FROM siswa WHERE id NOT IN (SELECT DISTINCT siswa_id FROM absensi WHERE DATE(waktu) = ?)", (today,))
+    belum_absen = cur.fetchone()[0]
+    
+    # Trend 30 hari
+    cur.execute("""
+        SELECT DATE(waktu) as date, COUNT(*) as count
+        FROM absensi
+        WHERE waktu >= DATE('now', '-30 days')
+        GROUP BY DATE(waktu)
+        ORDER BY date
+    """)
+    trend = [{"date": r[0], "count": r[1]} for r in cur.fetchall()]
+    
+    # Stats per kelas
+    cur.execute("""
+        SELECT s.kelas, COUNT(DISTINCT s.id) as total,
+               COUNT(DISTINCT CASE WHEN DATE(a.waktu) = ? THEN a.siswa_id END) as hadir
+        FROM siswa s
+        LEFT JOIN absensi a ON s.id = a.siswa_id
+        GROUP BY s.kelas
+    """, (today,))
+    class_stats = []
+    for r in cur.fetchall():
+        total = r[1]
+        hadir = r[2] or 0
+        alpha = total - hadir
+        percentage = round((hadir / total * 100), 1) if total > 0 else 0
+        class_stats.append({
+            "kelas": r[0],
+            "total": total,
+            "hadir": hadir,
+            "alpha": alpha,
+            "percentage": percentage
+        })
+    
+    # Stats per jurusan
+    cur.execute("""
+        SELECT s.jurusan, COUNT(DISTINCT s.id) as total,
+               COUNT(DISTINCT CASE WHEN DATE(a.waktu) = ? THEN a.siswa_id END) as hadir
+        FROM siswa s
+        LEFT JOIN absensi a ON s.id = a.siswa_id
+        GROUP BY s.jurusan
+    """, (today,))
+    jurusan_stats = []
+    for r in cur.fetchall():
+        total = r[1]
+        hadir = r[2] or 0
+        alpha = total - hadir
+        percentage = round((hadir / total * 100), 1) if total > 0 else 0
+        jurusan_stats.append({
+            "jurusan": r[0],
+            "total": total,
+            "hadir": hadir,
+            "alpha": alpha,
+            "percentage": percentage
+        })
+    
+    # Peak hours
+    cur.execute("""
+        SELECT strftime('%H:00', waktu) as hour, COUNT(*) as count
+        FROM absensi
+        WHERE DATE(waktu) = ?
+        GROUP BY hour
+        ORDER BY hour
+    """, (today,))
+    peak_hours = [{"hour": r[0], "count": r[1]} for r in cur.fetchall()]
+    
+    # Top students (30 hari terakhir)
+    cur.execute("""
+        SELECT s.nama, s.kelas, s.jurusan, s.nomor_absen,
+               COUNT(*) as total_hadir,
+               SUM(CASE WHEN a.status = 'HADIR' THEN 1 ELSE 0 END) as tepat_waktu,
+               SUM(CASE WHEN a.status = 'TERLAMBAT' THEN 1 ELSE 0 END) as terlambat
+        FROM absensi a
+        JOIN siswa s ON a.siswa_id = s.id
+        WHERE a.waktu >= DATE('now', '-30 days')
+        GROUP BY s.id
+        ORDER BY total_hadir DESC, tepat_waktu DESC
+        LIMIT 10
+    """)
+    top_students = [{"nama": r[0], "kelas": r[1], "jurusan": r[2], "nomor_absen": r[3],
+                     "total_hadir": r[4], "tepat_waktu": r[5], "terlambat": r[6]} 
+                    for r in cur.fetchall()]
+    
+    # Siswa paling sering terlambat
+    cur.execute("""
+        SELECT s.nama, s.kelas, s.jurusan, s.nomor_absen,
+               COUNT(*) as total_terlambat
+        FROM absensi a
+        JOIN siswa s ON a.siswa_id = s.id
+        WHERE a.status = 'TERLAMBAT' AND a.waktu >= DATE('now', '-30 days')
+        GROUP BY s.id
+        ORDER BY total_terlambat DESC
+        LIMIT 10
+    """)
+    most_late = [{"nama": r[0], "kelas": r[1], "jurusan": r[2], "nomor_absen": r[3],
+                  "total_terlambat": r[4]} for r in cur.fetchall()]
+    
+    # Siswa belum absen hari ini
+    cur.execute("""
+        SELECT s.nama, s.kelas, s.jurusan, s.nomor_absen
+        FROM siswa s
+        WHERE s.id NOT IN (
+            SELECT DISTINCT siswa_id FROM absensi WHERE DATE(waktu) = ?
+        )
+        ORDER BY s.kelas, s.jurusan, s.nama
+    """, (today,))
+    absent_today = [{"nama": r[0], "kelas": r[1], "jurusan": r[2], "nomor_absen": r[3]} 
+                    for r in cur.fetchall()]
+    
+    conn.close()
+    
+    stats = {
+        "total_siswa": total_siswa,
+        "absensi_hari_ini": absensi_hari_ini,
+        "belum_absen": belum_absen,
+        "persentase_hari_ini": round((absensi_hari_ini / total_siswa * 100), 1) if total_siswa > 0 else 0,
+        "absensi_minggu_ini": 0  # TODO: implement
+    }
+    
+    return render_template(
+        "admin/analytics.html",
+        stats=stats,
+        trend=trend,
+        class_stats=class_stats,
+        jurusan_stats=jurusan_stats,
+        peak_hours=peak_hours,
+        top_students=top_students,
+        most_late=most_late,
+        absent_today=absent_today,
+        weekly_comp=None  # TODO: implement
+    )
+
 @app.route("/admin/export/excel")
 @login_required
 def export_excel():
@@ -1475,49 +1703,6 @@ try:
 except Exception as e:
     print(f"Warning: Database initialization failed: {e}")
 
-@app.route("/generate_dummy")
-def generate_dummy():
-    """Generate data dummy siswa dan absensi untuk pengujian"""
-    import random
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-
-    kelas_list = ["X", "XI", "XII"]
-    jurusan_list = ["SIJA1", "SIJA2", "DKV1", "DKV2"]
-    nama_depan = ["Rasya", "Iqbal", "Naufal", "Aisyah", "Dina", "Rama", "Putri", "Arif", "Dewi", "Andi"]
-
-    # Generate 50 siswa
-    for i in range(1, 51):
-        nama = f"{random.choice(nama_depan)} {random.choice(['A', 'B', 'C', 'D'])}"
-        kelas = random.choice(kelas_list)
-        jurusan = random.choice(jurusan_list)
-        nomor_absen = f"{kelas}-{jurusan}-{i:03d}"
-
-        # Masukkan siswa tanpa wajah (dummy)
-        cur.execute("""
-            INSERT INTO siswa (nama, kelas, jurusan, foto_path, encoding, nomor_absen)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (nama, kelas, jurusan, "faces/dummy.jpg", "[]", nomor_absen))
-
-    conn.commit()
-
-    # Ambil semua siswa id
-    cur.execute("SELECT id, nama, kelas, jurusan FROM siswa")
-    siswa_list = cur.fetchall()
-
-    # Generate absensi acak
-    now = datetime.utcnow() + timedelta(hours=7)
-    for s in siswa_list:
-        waktu = now - timedelta(days=random.randint(0, 10), hours=random.randint(0, 6))
-        status = random.choice(["HADIR", "TERLAMBAT"])
-        cur.execute("""
-            INSERT INTO absensi (siswa_id, nama, kelas, jurusan, latitude, longitude, status, waktu)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (s[0], s[1], s[2], s[3], SCHOOL_LAT, SCHOOL_LNG, status, waktu))
-
-    conn.commit()
-    conn.close()
-    return "✅ 50 siswa & absensi dummy berhasil dibuat!"
 
 # ============= ERROR HANDLERS =============
 @app.errorhandler(404)

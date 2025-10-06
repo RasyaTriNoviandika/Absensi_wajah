@@ -32,5 +32,17 @@ Pillow==10.1.0
 # Gunicorn (Production Server)
 gunicorn==21.2.0
 
-# APScheduler (Background Tasks)
+# Security
+cryptography==41.0.7
+python-json-logger==2.0.7
+
+# Rate Limiting
+redis==5.0.1  # Optional, fallback to memory if not available
+
+# Scheduling
 APScheduler==3.10.4
+
+# Image Processing Enhancement
+Pillow==10.1.0
+
+# Existing packages tetap dipertahankan...

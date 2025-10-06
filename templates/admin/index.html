@@ -498,6 +498,7 @@
 
         <!-- Mobile Menu -->
         <div class="mobile-menu" id="mobileMenu">
+          <a href="{{ url_for('admin_analytics') }}" class="action-btn">📈 Analytics</a>
           <button class="action-btn" onclick="downloadFile('{{ url_for('export_excel') }}', 'laporan_absensi.xlsx')">📊 Export Excel</button>
           <button class="action-btn" onclick="downloadFile('{{ url_for('export_pdf') }}', 'laporan_absensi.pdf')">📄 Export PDF</button>
           <a href="{{ url_for('print_absensi') }}" target="_blank" class="action-btn">🖨️ Print</a>
@@ -543,22 +544,19 @@
         <a href="{{ url_for('admin_register') }}">Daftar Siswa</a>
       </div>
 
-      <div class="feature-card">
+   <div class="feature-card">
+        <span class="feature-icon">📈</span>
+        <h3>Analytics Dashboard</h3>
+        <p>Lihat statistik lengkap, grafik kehadiran, dan laporan siswa terajin/terlambat</p>
+        <a href="{{ url_for('admin_analytics') }}">Lihat Analytics</a>
+    </div>
+
+ <div class="feature-card">
   <span class="feature-icon">🗑️</span>
   <h3>Reset Database / Absen siswa</h3>
   <p>Hanya di gunakan untuk testing atau saat deploy ulang.</p>
   <a href="{{ url_for('reset_db') }}" onclick="return confirm('⚠️ Semua data akan hilang! Yakin reset database?')">Reset Sekarang</a>
 </div>
-
-
-      <!-- tidak kepake karna fungsinya sama -->
-      <!-- <div class="feature-card">
-        <span class="feature-icon">🗺️</span>
-        <h3>Peta Absensi</h3>
-        <p>Visualisasi lokasi absensi siswa pada peta untuk memantau keakuratan lokasi</p>
-        <a href="{{ url_for('admin_absensi_map') }}">Buka Peta</a>
-      </div> -->
-    </div>
 
     <footer>
       <p>Absensi Wajah | SMKN 9 KOTA BEKASI</p>
