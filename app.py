@@ -1012,7 +1012,7 @@ def absensi_user():
     return render_template("user/absensi.html", absensi=absensi)
 
 # ============= ROUTE ABSEN PULANG =============
-@app.route("/absen_pulang", methods=["GET"])
+@app.route("/absen_pulang", methods=["POST"])
 def absen_pulang():
     try:
         file = request.files["foto"]
