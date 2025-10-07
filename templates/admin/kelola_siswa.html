@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kelola Data Siswa</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      margin: 0;
+      padding: 15px;
+      line-height: 1.6;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 25px;
+      padding: 15px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    h2 {
+      margin: 0;
+      color: #333;
+      font-size: 1.8rem;
+      font-weight: 600;
+    }
+    .back-btn {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 10px 20px;
+      background: #007bff;
+      color: white;
+      text-decoration: none;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: background 0.3s ease;
+      box-shadow: 0 2px 8px rgba(0,123,255,0.3);
+    }
+    .back-btn:hover {
+      background: #0056b3;
+      transform: translateY(-1px);
+    }
+    .table-container {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      min-width: 600px; /* Minimum width for desktop */
+    }
+    th, td {
+      border: 1px solid #e0e0e0;
+      padding: 12px 8px;
+      text-align: center;
+      vertical-align: middle;
+    }
+    th {
+      background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+      color: #fff;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-size: 0.9rem;
+    }
+    tr:nth-child(even) { 
+      background: #f8f9fa; 
+    }
+    tr:hover {
+      background: #e3f2fd;
+      transform: scale(1.01);
+      transition: all 0.2s ease;
+    }
+    .btn {
+      padding: 8px 14px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      color: white;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      display: inline-block;
+      margin: 2px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    .btn-delete { 
+      background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); 
+    }
+    .btn-edit { 
+      background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); 
+      color: #000; 
+    }
+    .btn-delete:hover { 
+      background: linear-gradient(135deg, #c82333 0%, #b21f2d 100%);
+      transform: translateY(-1px);
+    }
+    .btn-edit:hover { 
+      background: linear-gradient(135deg, #e0a800 0%, #d39e00 100%);
+      transform: translateY(-1px);
+    }
+    .student-img {
+      width: 60px;
+      height: 60px;
+      object-fit: cover;
+      border-radius: 8px;
+      cursor: pointer;
+      border: 2px solid #ddd;
+      transition: border-color 0.3s ease;
+    }
+    .student-img:hover {
+      border-color: #007bff;
+      transform: scale(1.05);
+    }
+    .no-image {
+      color: #888;
+      font-style: italic;
+      font-size: 0.9rem;
+    }
+
+    /* Popup foto */
+    .popup {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.95);
+      justify-content: center;
+      align-items: center;
+      z-index: 999;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    .popup img {
+      max-width: 90%;
+      max-height: 90%;
+      border-radius: 12px;
+      box-shadow: 0 0 30px rgba(255,255,255,0.2);
+    }
+    .close {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      font-size: 28px;
+      color: white;
+      cursor: pointer;
+      background: rgba(255,0,0,0.8);
+      border-radius: 50%;
+      padding: 8px 14px;
+      line-height: 1;
+      transition: background 0.3s ease;
+      z-index: 1000;
+    }
+    .close:hover {
+      background: rgba(255,0,0,1);
+      transform: scale(1.1);
+    }
+
+    /* Responsiveness */
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+      }
+      h2 {
+        font-size: 1.5rem;
+      }
+      .header {
+        padding: 12px;
+        margin-bottom: 15px;
+      }
+      .back-btn {
+        padding: 12px 18px;
+        font-size: 16px;
+        width: 100%;
+        text-align: center;
+        box-sizing: border-box;
+      }
+      .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      table {
+        min-width: 700px; /* Ensure horizontal scroll on mobile */
+      }
+      th, td {
+        padding: 8px 6px;
+        font-size: 0.85rem;
+      }
+      .student-img {
+        width: 50px;
+        height: 50px;
+      }
+      .btn {
+        padding: 6px 10px;
+        font-size: 12px;
+        margin: 1px;
+        display: block; /* Stack buttons on mobile */
+        width: 100%;
+        box-sizing: border-box;
+        margin-bottom: 4px;
+      }
+      .popup {
+        padding: 10px;
+      }
+      .close {
+        top: 10px;
+        right: 10px;
+        font-size: 24px;
+        padding: 6px 10px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 5px;
+      }
+      th, td {
+        padding: 6px 4px;
+        font-size: 0.8rem;
+      }
+      .student-img {
+        width: 40px;
+        height: 40px;
+      }
+      .btn {
+        padding: 8px 12px;
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h2>Kelola Data Siswa</h2>
+    <a href="{{ url_for('admin_index') }}" class="back-btn">🏠 Kembali ke Beranda</a>
+  </div>
+
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>No</th>
+          <th>Nama</th>
+          <th>Kelas</th>
+          <th>Jurusan</th>
+          <th>No Absen</th>
+          <th>Foto Wajah</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in data %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>{{ s[1] }}</td>
+          <td>{{ s[2] }}</td>
+          <td>{{ s[3] }}</td>
+          <td>{{ s[4] }}</td>
+          <td>
+            {% if s[5] %}
+              <img src="{{ url_for('serve_face', filename=s[5]) }}" 
+                   class="student-img" 
+                   onclick="bukaPopup('{{ url_for('serve_face', filename=s[5]) }}')">
+            {% else %}
+              <span class="no-image">Tidak ada</span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="{{ url_for('edit_siswa', id=s[0]) }}" class="btn btn-edit">✏️ Edit</a>
+            <a href="{{ url_for('hapus_siswa', id=s[0]) }}" class="btn btn-delete" onclick="return confirm('Yakin ingin hapus {{ s[1] }}?')">🗑️ Hapus</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Popup -->
+  <div id="popup" class="popup" onclick="tutupPopup(event)">
+    <span class="close" onclick="tutupPopup(event)">×</span>
+    <img id="popupImg" src="" alt="Foto Siswa">
+  </div>
+
+  <script>
+    function bukaPopup(src) {
+      document.getElementById("popupImg").src = src;
+      document.getElementById("popup").style.display = "flex";
+      document.body.style.overflow = "hidden"; // Prevent background scroll
+    }
+    function tutupPopup(event) {
+      if (event && event.target.classList.contains('popup')) {
+        event.stopPropagation();
+      }
+      document.getElementById("popup").style.display = "none";
+      document.body.style.overflow = "auto"; // Restore scroll
+    }
+    // Close popup on Escape key
+    document.addEventListener('keydown', function(event) {
+      if (event.key === 'Escape') {
+        tutupPopup();
+      }
+    });
+  </script>
+
+</body>
+</html>

@@ -104,6 +104,45 @@
       flex-wrap: wrap;
     }
 
+      .header-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.back-btn {
+  background: #007bff;
+  color: white;
+  text-decoration: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.3s ease, transform 0.2s ease;
+  box-shadow: 0 2px 6px rgba(0, 123, 255, 0.3);
+}
+
+.back-btn:hover {
+  background: #0056b3;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+  .header-section {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+  }
+
+  .back-btn {
+    width: 100%;
+    max-width: 240px;
+    text-align: center;
+  }
+}
+   
     .reset-school-btn {
       padding: 8px 12px;
       background: #28a745;
@@ -284,8 +323,11 @@
 </head>
 <body>
   <div class="main-container">
+    <div class="header-section">
     <h2>Data Absensi Siswa + Map</h2>
-
+    <a href="{{ url_for('admin_index') }}" class="back-btn">🏠 Kembali ke Beranda</a>
+    </div>
+    
     <div class="search-container">
       <form method="get" action="{{ url_for('admin_absensi_map') }}">
         <input type="text" name="q" value="{{ search_query or '' }}" 
