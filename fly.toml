@@ -1,0 +1,28 @@
+# fly.toml app configuration file for Fly.io
+
+app = "absensi-wajah"   # 👉 ganti dengan nama unik kamu di Fly.io
+primary_region = "sin"        # region Singapore (dekat Indonesia)
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"               # Flask akan listen di 0.0.0.0:8080
+  PYTHONUNBUFFERED = "1"
+
+[[services]]
+  internal_port = 8080
+  processes = ["app"]
+
+  [[services.ports]]
+    handlers = ["http"]
+    port = 80
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 443
+
+  [services.concurrency]
+    type = "requests"
+    hard_limit = 25
+    soft_limit = 20
