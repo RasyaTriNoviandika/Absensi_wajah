@@ -457,8 +457,7 @@
         <a href="{{ url_for('admin_logout') }}" class="logout-btn" 
            onclick="return confirm('Yakin ingin logout?')">Logout</a>
       </div>
-
-      <h1>🎛️ Dashboard Admin / Guru</h1>
+      <h1> <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo SMKN 9" width="60px" class="logo"> Dashboard Admin / Guru</h1>
       <p>Absensi Wajah</p>
     </header>
 
@@ -498,7 +497,7 @@
 
         <!-- Mobile Menu -->
         <div class="mobile-menu" id="mobileMenu">
-          <a href="{{ url_for('admin_analytics') }}" class="action-btn">📈 Analytics</a>
+          <!-- <a href="{{ url_for('admin_analytics') }}" class="action-btn">📈 Analytics</a> -->
           <button class="action-btn" onclick="downloadFile('{{ url_for('export_excel') }}', 'laporan_absensi.xlsx')">📊 Export Excel</button>
           <button class="action-btn" onclick="downloadFile('{{ url_for('export_pdf') }}', 'laporan_absensi.pdf')">📄 Export PDF</button>
           <a href="{{ url_for('print_absensi') }}" target="_blank" class="action-btn">🖨️ Print</a>
@@ -557,7 +556,6 @@
   <p>Edit atau hapus data siswa yang sudah terdaftar</p>
   <a href="{{ url_for('admin_kelola_siswa') }}">Kelola Sekarang</a>
 </div>
-
 
  <div class="feature-card">
   <span class="feature-icon">🗑️</span>

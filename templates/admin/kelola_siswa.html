@@ -42,6 +42,128 @@
       background: #0056b3;
       transform: translateY(-1px);
     }
+
+    /* FILTER SECTION - NEW */
+    .filter-section {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .filter-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .filter-controls {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .filter-group label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .filter-group select {
+      padding: 10px 14px;
+      border: 2px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      background: white;
+      color: #333;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      min-width: 150px;
+    }
+
+    .filter-group select:hover {
+      border-color: #007bff;
+    }
+
+    .filter-group select:focus {
+      outline: none;
+      border-color: #007bff;
+      box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+    }
+
+    .filter-actions {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    .apply-filter-btn {
+      padding: 10px 20px;
+      background: #28a745;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3);
+    }
+
+    .apply-filter-btn:hover {
+      background: #218838;
+      transform: translateY(-1px);
+    }
+
+    .reset-filter-btn {
+      padding: 10px 20px;
+      background: #6c757d;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+
+    .reset-filter-btn:hover {
+      background: #5a6268;
+    }
+
+    /* INFO BADGE - NEW */
+    .info-badge {
+      background: #e3f2fd;
+      border: 1px solid #90caf9;
+      border-radius: 8px;
+      padding: 12px 18px;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      color: #1565c0;
+      font-weight: 500;
+    }
+
+    .info-badge .badge-icon {
+      font-size: 20px;
+    }
+
     .table-container {
       background: #fff;
       border-radius: 12px;
@@ -52,7 +174,7 @@
     table {
       border-collapse: collapse;
       width: 100%;
-      min-width: 600px; /* Minimum width for desktop */
+      min-width: 600px;
     }
     th, td {
       border: 1px solid #e0e0e0;
@@ -124,6 +246,23 @@
       font-size: 0.9rem;
     }
 
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #999;
+    }
+
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 15px;
+    }
+
+    .empty-state-text {
+      font-size: 16px;
+      font-weight: 500;
+    }
+
     /* Popup foto */
     .popup {
       display: none;
@@ -182,12 +321,32 @@
         text-align: center;
         box-sizing: border-box;
       }
+      
+      .filter-controls {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .filter-group select {
+        width: 100%;
+      }
+
+      .filter-actions {
+        width: 100%;
+        flex-direction: column;
+      }
+
+      .apply-filter-btn,
+      .reset-filter-btn {
+        width: 100%;
+      }
+
       .table-container {
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
       }
       table {
-        min-width: 700px; /* Ensure horizontal scroll on mobile */
+        min-width: 700px;
       }
       th, td {
         padding: 8px 6px;
@@ -201,19 +360,10 @@
         padding: 6px 10px;
         font-size: 12px;
         margin: 1px;
-        display: block; /* Stack buttons on mobile */
+        display: block;
         width: 100%;
         box-sizing: border-box;
         margin-bottom: 4px;
-      }
-      .popup {
-        padding: 10px;
-      }
-      .close {
-        top: 10px;
-        right: 10px;
-        font-size: 24px;
-        padding: 6px 10px;
       }
     }
 
@@ -243,44 +393,127 @@
     <a href="{{ url_for('admin_index') }}" class="back-btn">🏠 Kembali ke Beranda</a>
   </div>
 
+  <!-- FILTER SECTION - NEW -->
+  <div class="filter-section">
+    <div class="filter-title">
+      <span>🔍</span>
+      <span>Filter Data Siswa</span>
+    </div>
+
+    <form method="GET" action="{{ url_for('admin_kelola_siswa') }}" id="filterForm">
+        <div class="filter-group">
+            <label for="searchNama">Cari Nama</label>
+            <input 
+              type="text" 
+              name="search" 
+              id="searchNama" 
+              placeholder="Masukkan nama siswa..." 
+              value="{{ request.args.get('search', '') }}" 
+              style="padding: 10px 14px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px; min-width: 180px;"
+            >
+          </div>
+
+      <div class="filter-controls">
+        <div class="filter-group">
+          <label for="filterKelas">Kelas</label>
+          <select name="kelas" id="filterKelas">
+            <option value="">Semua Kelas</option>
+            {% for kelas in kelas_list %}
+              <option value="{{ kelas }}" {% if filter_kelas == kelas %}selected{% endif %}>
+                Kelas {{ kelas }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label for="filterJurusan">Jurusan</label>
+          <select name="jurusan" id="filterJurusan">
+            <option value="">Semua Jurusan</option>
+            {% for jurusan in jurusan_list %}
+              <option value="{{ jurusan }}" {% if filter_jurusan == jurusan %}selected{% endif %}>
+                {{ jurusan }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="filter-actions">
+          <button type="submit" class="apply-filter-btn">✓ Terapkan Filter</button>
+          <button type="button" class="reset-filter-btn" onclick="resetFilter()">↻ Reset</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- INFO BADGE - Menampilkan filter aktif dan jumlah data -->
+  <div class="info-badge">
+    <span class="badge-icon">👥</span>
+    <span>
+      {% if filter_kelas and filter_jurusan %}
+        Menampilkan: <strong>Kelas {{ filter_kelas }} - {{ filter_jurusan }}</strong> ({{ total_siswa }} siswa)
+      {% elif filter_kelas %}
+        Menampilkan: <strong>Kelas {{ filter_kelas }}</strong> ({{ total_siswa }} siswa)
+      {% elif filter_jurusan %}
+        Menampilkan: <strong>Jurusan {{ filter_jurusan }}</strong> ({{ total_siswa }} siswa)
+      {% else %}
+        Menampilkan: <strong>Semua Siswa</strong> ({{ total_siswa }} siswa)
+      {% endif %}
+    </span>
+  </div>
+
   <div class="table-container">
-    <table>
-      <thead>
-        <tr>
-          <th>No</th>
-          <th>Nama</th>
-          <th>Kelas</th>
-          <th>Jurusan</th>
-          <th>No Absen</th>
-          <th>Foto Wajah</th>
-          <th>Aksi</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for s in data %}
-        <tr>
-          <td>{{ loop.index }}</td>
-          <td>{{ s[1] }}</td>
-          <td>{{ s[2] }}</td>
-          <td>{{ s[3] }}</td>
-          <td>{{ s[4] }}</td>
-          <td>
-            {% if s[5] %}
-              <img src="{{ url_for('serve_face', filename=s[5]) }}" 
-                   class="student-img" 
-                   onclick="bukaPopup('{{ url_for('serve_face', filename=s[5]) }}')">
-            {% else %}
-              <span class="no-image">Tidak ada</span>
-            {% endif %}
-          </td>
-          <td>
-            <a href="{{ url_for('edit_siswa', id=s[0]) }}" class="btn btn-edit">✏️ Edit</a>
-            <a href="{{ url_for('hapus_siswa', id=s[0]) }}" class="btn btn-delete" onclick="return confirm('Yakin ingin hapus {{ s[1] }}?')">🗑️ Hapus</a>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    {% if data %}
+      <table>
+        <thead>
+          <tr>
+            <th>No</th>
+            <th>Nama</th>
+            <th>Kelas</th>
+            <th>Jurusan</th>
+            <th>No Absen</th>
+            <th>Foto Wajah</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in data %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ s[1] }}</td>
+            <td>{{ s[2] }}</td>
+            <td>{{ s[3] }}</td>
+            <td>{{ s[4] }}</td>
+            <td>
+              {% if s[5] %}
+                <img src="{{ url_for('serve_face', filename=s[5]) }}" 
+                     class="student-img" 
+                     onclick="bukaPopup('{{ url_for('serve_face', filename=s[5]) }}')">
+              {% else %}
+                <span class="no-image">Tidak ada</span>
+              {% endif %}
+            </td>
+            <td>
+              <a href="{{ url_for('edit_siswa', id=s[0]) }}" class="btn btn-edit">✏️ Edit</a>
+              <a href="{{ url_for('hapus_siswa', id=s[0]) }}" class="btn btn-delete" 
+                 onclick="return confirm('Yakin ingin hapus {{ s[1] }}?')">🗑️ Hapus</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="empty-state">
+        <div class="empty-state-icon">📭</div>
+        <div class="empty-state-text">
+          {% if filter_kelas or filter_jurusan %}
+            Tidak ada siswa ditemukan dengan filter yang dipilih
+          {% else %}
+            Belum ada siswa terdaftar
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
   </div>
 
   <!-- Popup -->
@@ -293,21 +526,50 @@
     function bukaPopup(src) {
       document.getElementById("popupImg").src = src;
       document.getElementById("popup").style.display = "flex";
-      document.body.style.overflow = "hidden"; // Prevent background scroll
+      document.body.style.overflow = "hidden";
     }
+    
     function tutupPopup(event) {
       if (event && event.target.classList.contains('popup')) {
         event.stopPropagation();
       }
       document.getElementById("popup").style.display = "none";
-      document.body.style.overflow = "auto"; // Restore scroll
+      document.body.style.overflow = "auto";
     }
-    // Close popup on Escape key
+    
     document.addEventListener('keydown', function(event) {
       if (event.key === 'Escape') {
         tutupPopup();
       }
     });
+
+    function resetFilter() {
+      window.location.href = "{{ url_for('admin_kelola_siswa') }}";
+    }
+
+     const searchInput = document.getElementById("searchNama");
+    const form = document.getElementById("filterForm");
+    let typingTimer;
+    const typingDelay = 400; // waktu delay sebelum auto-search (ms)
+
+    searchInput.addEventListener("keyup", function() {
+      clearTimeout(typingTimer);
+      typingTimer = setTimeout(() => {
+        form.submit(); // otomatis kirim form setelah berhenti mengetik
+      }, typingDelay);
+    });
+
+    searchInput.addEventListener("keydown", function() {
+      clearTimeout(typingTimer); // reset saat masih mengetik
+    });
+
+    // Auto-submit on dropdown change (optional - comment out if not needed)
+    // document.getElementById('filterKelas').addEventListener('change', function() {
+    //   document.getElementById('filterForm').submit();
+    // });
+    // document.getElementById('filterJurusan').addEventListener('change', function() {
+    //   document.getElementById('filterForm').submit();
+    // });
   </script>
 
 </body>

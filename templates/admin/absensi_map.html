@@ -23,14 +23,13 @@
       background: #f8f9fa;
       color: #333;
       line-height: 1.5;
-      padding: 0; /* Hilangkan padding body untuk full-width */
+      padding: 0;
     }
 
-    /* Wrapper utama untuk centering dan sinkron */
     .main-container {
       max-width: 1200px;
       margin: 0 auto;
-      padding: 20px; /* Padding samping untuk desktop */
+      padding: 20px;
     }
 
     h2 {
@@ -41,13 +40,128 @@
       color: #333;
     }
 
-    /* Search form yang menarik, simpel, dan left-aligned */
+    /* FILTER SECTION - NEW */
+    .filter-section {
+      background: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      border: 1px solid #ddd;
+    }
+
+    .filter-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    .filter-label {
+      font-weight: 600;
+      color: #555;
+      font-size: 14px;
+    }
+
+    .date-filters {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .date-btn {
+      padding: 8px 16px;
+      border: 2px solid #ddd;
+      border-radius: 6px;
+      background: white;
+      color: #333;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+
+    .date-btn:hover {
+      border-color: #007bff;
+      background: rgba(0, 123, 255, 0.05);
+    }
+
+    .date-btn.active {
+      border-color: #007bff;
+      background: #007bff;
+      color: white;
+    }
+
+    .date-picker-container {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    input[type="date"] {
+      padding: 8px 12px;
+      border: 2px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      transition: border-color 0.2s ease;
+    }
+
+    input[type="date"]:focus {
+      outline: none;
+      border-color: #007bff;
+      box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+    }
+
+    .apply-date-btn {
+      padding: 8px 16px;
+      background: #28a745;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: background 0.2s ease;
+    }
+
+    .apply-date-btn:hover {
+      background: #218838;
+    }
+
+    /* INFO BADGE - NEW */
+    .info-badge {
+      background: #e3f2fd;
+      border: 1px solid #90caf9;
+      border-radius: 6px;
+      padding: 10px 15px;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      color: #1565c0;
+      font-weight: 500;
+    }
+
+    .info-badge .badge-icon {
+      font-size: 18px;
+    }
+
+    /* Search container */
     .search-container {
       display: flex;
       align-items: center;
       gap: 10px;
       margin-bottom: 15px;
       flex-wrap: wrap;
+    }
+
+    .search-container form {
+      display: flex;
+      gap: 10px;
+      flex: 1;
+      min-width: 300px;
     }
 
     .search-container input[type="text"] {
@@ -64,11 +178,6 @@
     .search-container input[type="text"]:focus {
       border-color: #007bff;
       box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
-    }
-
-    .search-container input[type="text"]::placeholder {
-      color: #999;
-      font-style: italic;
     }
 
     .search-container button {
@@ -91,12 +200,31 @@
       background: #0056b3;
     }
 
-    .search-container button:focus {
-      outline: 2px solid #007bff;
-      outline-offset: 2px;
+    .header-section {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
     }
 
-    /* Tombol reset ke lokasi sekolah */
+    .back-btn {
+      background: #007bff;
+      color: white;
+      text-decoration: none;
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      transition: background 0.3s ease, transform 0.2s ease;
+      box-shadow: 0 2px 6px rgba(0, 123, 255, 0.3);
+    }
+
+    .back-btn:hover {
+      background: #0056b3;
+      transform: translateY(-1px);
+    }
+
     .map-controls {
       display: flex;
       gap: 10px;
@@ -104,45 +232,6 @@
       flex-wrap: wrap;
     }
 
-      .header-section {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-}
-
-.back-btn {
-  background: #007bff;
-  color: white;
-  text-decoration: none;
-  border-radius: 8px;
-  padding: 10px 16px;
-  font-size: 14px;
-  font-weight: 500;
-  transition: background 0.3s ease, transform 0.2s ease;
-  box-shadow: 0 2px 6px rgba(0, 123, 255, 0.3);
-}
-
-.back-btn:hover {
-  background: #0056b3;
-  transform: translateY(-1px);
-}
-
-@media (max-width: 768px) {
-  .header-section {
-    flex-direction: column;
-    gap: 10px;
-    text-align: center;
-  }
-
-  .back-btn {
-    width: 100%;
-    max-width: 240px;
-    text-align: center;
-  }
-}
-   
     .reset-school-btn {
       padding: 8px 12px;
       background: #28a745;
@@ -163,11 +252,6 @@
       background: #218838;
     }
 
-    .reset-school-btn:focus {
-      outline: 2px solid #28a745;
-      outline-offset: 2px;
-    }
-
     #map {
       height: 400px;
       width: 100%;
@@ -182,13 +266,13 @@
       border: 1px solid #ddd;
       border-radius: 4px;
       overflow-x: auto;
-      margin-bottom: 20px; /* Tambah bottom untuk closure */
+      margin-bottom: 20px;
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 800px; /* Naikkan sedikit untuk desktop, agar table lebih full */
+      min-width: 800px;
     }
 
     th, td {
@@ -209,7 +293,6 @@
       background: #f8f9fa;
     }
 
-    /* Tombol sederhana */
     .button {
       display: inline-block;
       color: #fff;
@@ -230,114 +313,212 @@
       font-style: italic;
     }
 
-    /* Responsive - Sesuaikan untuk mobile */
+    /* Responsive */
     @media (max-width: 768px) {
       .main-container {
         padding: 10px;
       }
 
-      h2 {
-        font-size: 1.3rem;
-        margin-bottom: 12px;
+      .filter-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .date-filters {
+        flex-direction: column;
+      }
+
+      .date-btn {
+        width: 100%;
+        text-align: center;
       }
 
       .search-container {
         justify-content: center;
-        gap: 8px;
+      }
+
+      .search-container form {
+        width: 100%;
+        min-width: auto;
       }
 
       .search-container input[type="text"] {
         min-width: auto;
         width: 100%;
-        max-width: 250px;
-      }
-
-      .map-controls {
-        justify-content: center;
       }
 
       #map {
         height: 300px;
-        margin-bottom: 12px;
-      }
-
-      .table-container {
-        padding: 10px;
-      }
-
-      th, td {
-        padding: 8px 6px;
-        font-size: 13px;
-      }
-
-      .button {
-        padding: 5px 8px;
-        font-size: 11px;
       }
 
       table {
-        min-width: 600px; /* Kurangi di mobile */
+        min-width: 600px;
       }
     }
 
     @media (max-width: 480px) {
-      .search-container {
+      .date-picker-container {
         flex-direction: column;
         align-items: stretch;
-        gap: 10px;
       }
 
-      .search-container input[type="text"] {
+      input[type="date"],
+      .apply-date-btn {
         width: 100%;
-      }
-
-      .search-container button {
-        justify-content: center;
-      }
-
-      .map-controls {
-        flex-direction: column;
-        align-items: center;
-      }
-
-      .reset-school-btn {
-        width: 100%;
-        max-width: 200px;
-        justify-content: center;
       }
 
       #map {
         height: 250px;
       }
 
-      th, td {
-        font-size: 12px;
-        padding: 6px 4px;
-      }
-
       table {
-        min-width: 500px; /* Lebih compact di ponsel kecil */
+        min-width: 500px;
       }
+      
     }
+    /* ======= TAMBAHAN CSS UNTUK BUKTI SURAT ======= */
+.bukti-preview {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 2px solid #ddd;
+    transition: transform 0.2s, border-color 0.2s;
+}
+
+.bukti-preview:hover {
+    transform: scale(1.1);
+    border-color: #007bff;
+    box-shadow: 0 2px 8px rgba(0,123,255,0.3);
+}
+
+.no-bukti {
+    color: #999;
+    font-style: italic;
+    font-size: 13px;
+}
+
+.badge-pulang-cepat {
+    background: #fff3cd;
+    color: #856404;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    display: inline-block;
+}
+
+/* Modal untuk preview gambar */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    align-items: center;
+    justify-content: center;
+}
+
+.modal.active {
+    display: flex;
+}
+
+.modal-content {
+    max-width: 90%;
+    max-height: 90%;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    animation: zoomIn 0.3s ease;
+}
+
+@keyframes zoomIn {
+    from {
+        transform: scale(0.5);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.modal-close {
+    position: absolute;
+    top: 20px;
+    right: 30px;
+    color: #fff;
+    font-size: 40px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.3s;
+    z-index: 10000;
+}
+
+.modal-close:hover {
+    color: #ff4444;
+}
+
+.modal-info {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.7);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+}
   </style>
 </head>
 <body>
   <div class="main-container">
     <div class="header-section">
-    <h2>Data Absensi Siswa + Map</h2>
-    <a href="{{ url_for('admin_index') }}" class="back-btn">🏠 Kembali ke Beranda</a>
+      <h2>Data Absensi Siswa + Map</h2>
+      <a href="{{ url_for('admin_index') }}" class="back-btn">🏠 Kembali ke Beranda</a>
     </div>
-    
+
+    <!-- INFO BADGE - Menampilkan tanggal dan jumlah data -->
+    <div class="info-badge">
+      <span class="badge-icon">📅</span>
+      <span>Menampilkan data: <strong>{{ formatted_date }}</strong> ({{ total_absensi }} absensi)</span>
+    </div>
+
+     <!-- Search Bar -->
     <div class="search-container">
-      <form method="get" action="{{ url_for('admin_absensi_map') }}">
-        <input type="text" name="q" value="{{ search_query or '' }}" 
+      <form method="get" action="{{ url_for('admin_absensi_map') }}" id="searchForm">
+        <input type="hidden" name="date" id="dateInput" value="{{ date_filter }}">
+        <input type="text" name="q" autocomplete="off" value="{{ search_query or '' }}" 
                placeholder="🔍 Cari nama | Kelas | Jurusan | No Absen" 
                aria-label="Cari data absensi">
         <button type="submit">🔍 Cari</button>
       </form>
     </div>
+    
+    <!-- FILTER SECTION - NEW -->
+    <div class="filter-section">
+      <div class="filter-row">
+        <span class="filter-label">Filter Tanggal:</span>
+        <div class="date-filters">
+          <button class="date-btn" onclick="filterToday()" id="todayBtn">📅 Hari Ini</button>
+          <button class="date-btn" onclick="filterYesterday()" id="yesterdayBtn">⏮ Kemarin</button>
+        </div>
+      </div>
+      
+      <div class="filter-row">
+        <span class="filter-label">Atau Pilih Tanggal:</span>
+        <div class="date-picker-container">
+          <input type="date" id="customDate" value="{{ date_filter }}">
+          <button class="apply-date-btn" onclick="applyCustomDate()">✓ Terapkan</button>
+        </div>
+      </div>
+    </div>
 
-    <!-- Kontrol Map: Tombol reset ke lokasi sekolah -->
+    <!-- Map Controls -->
     <div class="map-controls">
       <button class="reset-school-btn" onclick="resetToSchool()">📍 Fokus ke Lokasi Sekolah</button>
     </div>
@@ -345,195 +526,326 @@
     <div id="map"></div>
     
     <div class="table-container">
-      <table>
-        <thead>
-          <tr>
-            <th>No</th>
-            <th>No. Absen</th>
-            <th>Nama</th>
-            <th>Kelas</th>
-            <th>Jurusan</th>
-            <th>Status Masuk</th>
-            <th>Jam Masuk</th>
-            <th>Lokasi Masuk</th>
-            <th>Status Pulang</th>
-            <th>Jam Pulang</th>
-            <th>Lokasi Pulang</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for a in absensi %}
-          <tr>
-            <td>{{ loop.index }}</td>
-            <td>{{ a[11] }}</td>  <!-- NOMOR ABSEN (index 11) -->
-            <td>{{ a[0] }}</td>   <!-- Nama -->
-            <td>{{ a[1] }}</td>   <!-- Kelas -->
-            <td>{{ a[2] }}</td>   <!-- Jurusan -->
-            <td>{{ a[3] }}</td>   <!-- Status Masuk -->
-            <td>{{ a[4] }}</td>   <!-- Waktu Masuk -->
-            <td>
-              {% if a[5] and a[6] %}
-                <a class="button" href="#" onclick="focusMarker({{ loop.index0 }})">Lihat Masuk</a>
+  <table>
+    <thead>
+      <tr>
+        <th>No</th>
+        <th>No. Absen</th>
+        <th>Nama</th>
+        <th>Kelas</th>
+        <th>Jurusan</th>
+        <th>Status Masuk</th>
+        <th>Jam Masuk</th>
+        <th>Lokasi Masuk</th>
+        <th>Status Pulang</th>
+        <th>Jam Pulang</th>
+        <th>Lokasi Pulang</th>
+        <th>Alasan Pulang Cepat</th>
+        <th>Bukti Surat</th> <!-- KOLOM BARU -->
+      </tr>
+    </thead>
+    <tbody>
+      {% if absensi %}
+        {% for a in absensi %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>{{ a[11] }}</td>
+          <td>{{ a[0] }}</td>
+          <td>{{ a[1] }}</td>
+          <td>{{ a[2] }}</td>
+          <td>{{ a[3] }}</td>
+          <td>{{ a[4] }}</td>
+          <td>
+            {% if a[5] and a[6] %}
+              <a class="button" href="#" onclick="focusMarker({{ loop.index0 }}); return false;">Lihat Masuk</a>
+            {% else %}
+              -
+            {% endif %}
+          </td>
+          <td>
+            {% if a[7] %}
+              {% if a[7] == 'PULANG CEPAT' %}
+                <span class="badge-pulang-cepat">⚠️ {{ a[7] }}</span>
               {% else %}
-                -
-              {% endif %}
-            </td>
-            <td>
-              {% if a[7] %}
                 {{ a[7] }}
-              {% else %}
-                <span class="status-pending">Belum Pulang</span>
               {% endif %}
-            </td>
-            <td>
-              {% if a[8] %}
-                {{ a[8] }}
+            {% else %}
+              <span class="status-pending">Belum Pulang</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if a[8] %}
+              {{ a[8] }}
+            {% else %}
+              <span class="status-pending">-</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if a[9] and a[10] %}
+              <a class="button" href="#" onclick="focusMarkerPulang({{ loop.index0 }}); return false;">Lihat Pulang</a>
+            {% else %}
+              -
+            {% endif %}
+          </td>
+          <td style="max-width: 200px; font-size: 13px;">
+            {% if a[12] %} 
+              {{ a[12] }}
+            {% else %}
+              <span class="no-bukti">-</span>
+            {% endif %}
+          </td>
+          <!-- KOLOM BARU: BUKTI SURAT -->
+          <td>
+            {% if a[13] %}
+              <img src="{{ url_for('serve_bukti_surat', filename=a[13]) }}" 
+                   class="bukti-preview" 
+                   onclick="openImageModal('{{ url_for('serve_bukti_surat', filename=a[13]) }}', '{{ a[0] }}', '{{ a[1] }} - {{ a[2] }}')"
+                   alt="Bukti Surat"
+                   title="Klik untuk memperbesar">
+            {% else %}
+              {% if a[7] == 'PULANG CEPAT' %}
+                <span class="no-bukti">❌ Tidak ada bukti</span>
               {% else %}
-                <span class="status-pending">-</span>
+                <span class="no-bukti">-</span>
               {% endif %}
-            </td>
-            <td>
-              {% if a[9] and a[10] %}
-                <a class="button" href="#" onclick="focusMarkerPulang({{ loop.index0 }})">Lihat Pulang</a>
-              {% else %}
-                -
-              {% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr>
+          <td colspan="13" style="text-align:center; color:#999; padding:20px;">
+            📭 Tidak ada data absensi untuk tanggal ini
+          </td>
+        </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
   </div>
+
+  <div id="buktiModal" class="modal" onclick="closeImageModal()">
+    <span class="modal-close" onclick="closeImageModal()">&times;</span>
+    <img class="modal-content" id="buktiModalImg" alt="Bukti Surat">
+    <div class="modal-info" id="buktiModalInfo"></div>
+</div>
 
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
- <script>
-  // Inisialisasi map dengan fokus awal ke lokasi sekolah
-  var map = L.map('map').setView([{{ SCHOOL_LAT }}, {{ SCHOOL_LNG }}], 14);
-
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors'
-  }).addTo(map);
-
-  // Marker sekolah dengan popup
-  var schoolMarker = L.marker([{{ SCHOOL_LAT }}, {{ SCHOOL_LNG }}])
-    .addTo(map)
-    .bindPopup("<b>SMKN 9 Bekasi</b><br>Area absensi utama");
-
-  // Lingkaran radius sederhana di sekitar sekolah
-  var schoolCircle = L.circle([{{ SCHOOL_LAT }}, {{ SCHOOL_LNG }}], {
-    radius: {{ RADIUS|default(15) }},
-    color: "red",
-    fillColor: "#f03",
-    fillOpacity: 0.2
-  }).addTo(map);
-
-  var absensiData = {{ absensi|tojson }};
-  var markersMasuk = [];
-  var markersPulang = [];
-
-  // Buat cluster group
-  var clusterGroup = L.markerClusterGroup();
-
-  // Tambahkan marker untuk setiap absensi
-  absensiData.forEach(function(a, i){
-    var lat = a[5];  // latitude masuk
-    var lng = a[6];  // longitude masuk
-    var latPulang = a[9];  // latitude pulang
-    var lngPulang = a[10]; // longitude pulang
+  
+  <script>
+    function openImageModal(imgSrc, nama, kelas) {
+    const modal = document.getElementById('buktiModal');
+    const modalImg = document.getElementById('buktiModalImg');
+    const modalInfo = document.getElementById('buktiModalInfo');
     
-    // Marker absen masuk (biru)
-    if(lat && lng){
-      var markerMasuk = L.marker([lat, lng], {
-        icon: L.icon({
-          iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-          shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-          iconSize: [25, 41],
-          iconAnchor: [12, 41],
-          popupAnchor: [1, -34],
-          shadowSize: [41, 41]
-        })
-      }).bindPopup(
-        `<b>${a[0]}</b><br>
-        ${a[1]} - ${a[2]}<br>
-        <strong>MASUK:</strong> ${a[3]}<br>
-        Waktu: ${a[4]}`
-      );
-      clusterGroup.addLayer(markerMasuk);
-      markersMasuk.push(markerMasuk);
-    }
+    modal.classList.add('active');
+    modalImg.src = imgSrc;
+    modalInfo.innerHTML = `<strong>${nama}</strong><br>${kelas}`;
     
-    // Marker absen pulang (hijau)
-    if(latPulang && lngPulang){
-      var markerPulang = L.marker([latPulang, lngPulang], {
-        icon: L.icon({
-          iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-          shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-          iconSize: [25, 41],
-          iconAnchor: [12, 41],
-          popupAnchor: [1, -34],
-          shadowSize: [41, 41]
-        })
-      }).bindPopup(
-        `<b>${a[0]}</b><br>
-        ${a[1]} - ${a[2]}<br>
-        <strong>PULANG:</strong> ${a[7]}<br>
-        Waktu: ${a[8]}`
-      );
-      clusterGroup.addLayer(markerPulang);
-      markersPulang.push(markerPulang);
+    // Prevent body scroll
+    document.body.style.overflow = 'hidden';
+}
+
+// Fungsi tutup modal
+function closeImageModal() {
+    const modal = document.getElementById('buktiModal');
+    modal.classList.remove('active');
+    
+    // Restore body scroll
+    document.body.style.overflow = 'auto';
+}
+
+// Close modal dengan ESC key
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeImageModal();
     }
+});
+
+// Prevent modal close when clicking on image
+document.getElementById('buktiModalImg')?.addEventListener('click', function(e) {
+    e.stopPropagation();
+});
+    
+  // 🔍 Live Search (otomatis jalan saat mengetik)
+  const searchInput = document.querySelector('#searchForm input[name="q"]');
+  const searchForm = document.getElementById("searchForm");
+  let searchTimer;
+  const searchDelay = 500; // jeda 0.5 detik setelah berhenti mengetik
+
+  searchInput.addEventListener("keyup", function () {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      searchForm.submit();
+    }, searchDelay);
   });
 
-  // Tambahkan cluster ke map
-  map.addLayer(clusterGroup);
+  searchInput.addEventListener("keydown", function () {
+    clearTimeout(searchTimer); // reset kalau masih ngetik
+  });
+  
+</script>
 
-  // Fungsi untuk zoom/fit bounds ke semua marker
-  function fitToAllMarkers() {
-    if (clusterGroup.getLayers().length > 0) {
-      map.fitBounds(clusterGroup.getBounds().pad(0.2));
-    } else {
+  <script>
+    // Current date filter
+    const currentDate = "{{ date_filter }}";
+    
+    // Update active button
+    function updateActiveButton() {
+      const today = new Date().toISOString().split('T')[0];
+      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+      
+      document.getElementById('todayBtn').classList.remove('active');
+      document.getElementById('yesterdayBtn').classList.remove('active');
+      
+      if (currentDate === today) {
+        document.getElementById('todayBtn').classList.add('active');
+      } else if (currentDate === yesterday) {
+        document.getElementById('yesterdayBtn').classList.add('active');
+      }
+    }
+    
+    // Filter functions
+    function filterToday() {
+      const today = new Date().toISOString().split('T')[0];
+      window.location.href = `{{ url_for('admin_absensi_map') }}?date=${today}`;
+    }
+    
+    function filterYesterday() {
+      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+      window.location.href = `{{ url_for('admin_absensi_map') }}?date=${yesterday}`;
+    }
+    
+    function applyCustomDate() {
+      const customDate = document.getElementById('customDate').value;
+      if (customDate) {
+        window.location.href = `{{ url_for('admin_absensi_map') }}?date=${customDate}`;
+      } else {
+        alert('Silakan pilih tanggal terlebih dahulu!');
+      }
+    }
+    
+    // Update search form to include date
+    document.getElementById('searchForm').addEventListener('submit', function(e) {
+      document.getElementById('dateInput').value = currentDate;
+    });
+    
+    // Initialize
+    updateActiveButton();
+
+    // Map initialization
+    var map = L.map('map').setView([{{ SCHOOL_LAT }}, {{ SCHOOL_LNG }}], 14);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    var schoolMarker = L.marker([{{ SCHOOL_LAT }}, {{ SCHOOL_LNG }}])
+      .addTo(map)
+      .bindPopup("<b>SMKN 9 Bekasi</b><br>Area absensi utama");
+
+    var schoolCircle = L.circle([{{ SCHOOL_LAT }}, {{ SCHOOL_LNG }}], {
+      radius: {{ RADIUS|default(15) }},
+      color: "red",
+      fillColor: "#f03",
+      fillOpacity: 0.2
+    }).addTo(map);
+
+    var absensiData = {{ absensi|tojson }};
+    var markersMasuk = [];
+    var markersPulang = [];
+    var clusterGroup = L.markerClusterGroup();
+
+    absensiData.forEach(function(a, i){
+      var lat = a[5];
+      var lng = a[6];
+      var latPulang = a[9];
+      var lngPulang = a[10];
+      
+      if(lat && lng){
+        var markerMasuk = L.marker([lat, lng], {
+          icon: L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+          })
+        }).bindPopup(
+          `<b>${a[0]}</b><br>
+          ${a[1]} - ${a[2]}<br>
+          <strong>MASUK:</strong> ${a[3]}<br>
+          Waktu: ${a[4]}`
+        );
+        clusterGroup.addLayer(markerMasuk);
+        markersMasuk.push(markerMasuk);
+      }
+      
+      if(latPulang && lngPulang){
+        var markerPulang = L.marker([latPulang, lngPulang], {
+          icon: L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+          })
+        }).bindPopup(
+          `<b>${a[0]}</b><br>
+          ${a[1]} - ${a[2]}<br>
+          <strong>PULANG:</strong> ${a[7]}<br>
+          Waktu: ${a[8]}`
+        );
+        clusterGroup.addLayer(markerPulang);
+        markersPulang.push(markerPulang);
+      }
+    });
+
+    map.addLayer(clusterGroup);
+
+    function fitToAllMarkers() {
+      if (clusterGroup.getLayers().length > 0) {
+        map.fitBounds(clusterGroup.getBounds().pad(0.2));
+      } else {
+        map.setView([{{ SCHOOL_LAT }}, {{ SCHOOL_LNG }}], 14);
+        schoolMarker.openPopup();
+      }
+    }
+
+    map.whenReady(fitToAllMarkers);
+
+    function resetToSchool() {
       map.setView([{{ SCHOOL_LAT }}, {{ SCHOOL_LNG }}], 14);
       schoolMarker.openPopup();
     }
-  }
 
-  map.whenReady(fitToAllMarkers);
-
-  // Fungsi reset/fokus ke lokasi sekolah
-  function resetToSchool() {
-    map.setView([{{ SCHOOL_LAT }}, {{ SCHOOL_LNG }}], 14);
-    schoolMarker.openPopup();
-  }
-
-  // Fungsi fokus marker masuk
-  function focusMarker(index){
-    var marker = markersMasuk[index];
-    if(marker){
-      map.setView(marker.getLatLng(), 17);
-      marker.openPopup();
-    } else {
-      alert('Marker tidak ditemukan atau data tidak lengkap.');
+    function focusMarker(index){
+      var marker = markersMasuk[index];
+      if(marker){
+        map.setView(marker.getLatLng(), 17);
+        marker.openPopup();
+      } else {
+        alert('Marker tidak ditemukan atau data tidak lengkap.');
+      }
     }
-  }
-  
-  // Fungsi fokus marker pulang
-  function focusMarkerPulang(index){
-    var marker = markersPulang[index];
-    if(marker){
-      map.setView(marker.getLatLng(), 17);
-      marker.openPopup();
-    } else {
-      alert('Marker tidak ditemukan atau data tidak lengkap.');
+    
+    function focusMarkerPulang(index){
+      var marker = markersPulang[index];
+      if(marker){
+        map.setView(marker.getLatLng(), 17);
+        marker.openPopup();
+      } else {
+        alert('Marker tidak ditemukan atau data tidak lengkap.');
+      }
     }
-  }
 
-  // Biar responsive
-  window.addEventListener('resize', function() {
-    map.invalidateSize();
-  });
-</script>
+    window.addEventListener('resize', function() {
+      map.invalidateSize();
+    });
+  </script>
 </body>
 </html>

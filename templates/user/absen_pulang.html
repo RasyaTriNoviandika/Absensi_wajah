@@ -7,230 +7,339 @@
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
   <style>
-    * { margin:0; padding:0; box-sizing:border-box; font-family:'Poppins',sans-serif; }
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
     body {
-      background:#f5f5f5; min-height:100vh;
-      display:flex; align-items:center; justify-content:center; padding:20px;
+      background: #f5f5f5;
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
     }
     .container {
-      background:#fff; padding:30px; border-radius:10px;
-      box-shadow:0 2px 10px rgba(0,0,0,0.1); text-align:center;
-      width:100%; max-width:450px;
+      background: #fff; padding: 30px; border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      text-align: center; width: 100%; max-width: 450px;
     }
-    h2 {
-      font-size:24px; margin-bottom:20px;
-      display:flex; align-items:center; justify-content:center; gap:8px;
-    }
-    h2::before { content:"🏃"; font-size:28px; }
-    .info-box {
-      background:#fff3cd; padding:15px; border-radius:6px;
-      margin-bottom:20px; border-left:4px solid #ffc107;
-    }
-    .info-box p { color:#856404; font-size:14px; margin:0; }
+    h2 { font-size: 24px; margin-bottom: 20px; }
     .time-info {
-      background:#d1ecf1; padding:12px; border-radius:6px;
-      margin-bottom:15px; border-left:4px solid #17a2b8;
+      background: #d1ecf1; border-left: 4px solid #17a2b8;
+      padding: 12px; border-radius: 6px; margin-bottom: 15px;
     }
-    .time-info p { color:#0c5460; font-size:14px; margin:0; font-weight:600; }
-    
-    /* ============= FIX MIRROR CAMERA ============= */
+    .info-box {
+      background: #fff3cd; border-left: 4px solid #ffc107;
+      padding: 15px; border-radius: 6px; margin-bottom: 20px;
+      text-align: left;
+    }
     video {
-      width:100%; border-radius:6px; margin-bottom:15px;
-      border:2px solid #28a745; max-width:350px;
-      transform: scaleX(-1); /* Mirror horizontal */
-      -webkit-transform: scaleX(-1); /* Safari */
+      width: 100%; max-width: 350px;
+      border: 2px solid #28a745; border-radius: 6px;
+      transform: scaleX(-1);
+      margin-bottom: 15px;
     }
-    /* ============================================= */
-    
     button {
-      width:100%; padding:14px; border:none;
-      border-radius:6px; font-size:16px; font-weight:600;
-      background:#28a745; color:#fff; cursor:pointer; transition:.3s;
-      margin-bottom:10px;
+      width: 100%; padding: 14px; margin-top: 10px;
+      font-size: 16px; font-weight: 600;
+      border: none; border-radius: 6px;
+      background: #28a745; color: white;
+      cursor: pointer; transition: 0.3s;
     }
-    button:hover:not(:disabled) {
-      background:#1e7e34; transform:translateY(-2px);
-      box-shadow:0 4px 12px rgba(40,167,69,0.3);
+    button:hover:not(:disabled) { background: #1e7e34; transform: translateY(-2px); }
+    button:disabled { background: #6c757d; cursor: not-allowed; }
+    textarea {
+      width: 100%; padding: 10px; border-radius: 6px;
+      border: 1px solid #ddd; resize: vertical; min-height: 80px;
     }
-    button:disabled { background:#6c757d; cursor:not-allowed; }
-    .back-link { margin-top:15px; }
-    .back-link a { color:#007bff; text-decoration:none; font-size:14px; }
-    .back-link a:hover { color:#0056b3; }
-    canvas { display:none; }
+    .back-link { margin-top: 15px; }
+    .back-link a { color: #007bff; text-decoration: none; }
+    
+    /* ============= STYLE BARU UNTUK UPLOAD BUKTI SURAT ============= */
+    .bukti-surat-section {
+      display: none;
+      margin-top: 15px;
+      padding: 15px;
+      background: #fff3cd;
+      border: 2px dashed #ffc107;
+      border-radius: 8px;
+      text-align: left;
+    }
+    
+    .bukti-surat-section.show {
+      display: block;
+    }
+    
+    .bukti-surat-section h4 {
+      color: #856404;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .upload-label {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      background: white;
+      border: 2px solid #ffc107;
+      border-radius: 6px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.3s ease;
+      font-weight: 600;
+      color: #856404;
+    }
+    
+    .upload-label:hover {
+      background: #ffc107;
+      color: white;
+    }
+    
+    .file-preview {
+      margin-top: 10px;
+      padding: 10px;
+      background: white;
+      border-radius: 6px;
+      border: 1px solid #dee2e6;
+      display: none;
+    }
+    
+    .file-preview.show {
+      display: block;
+    }
+    
+    .file-preview img {
+      width: 100%;
+      max-width: 200px;
+      border-radius: 6px;
+      border: 2px solid #28a745;
+      margin-top: 10px;
+    }
+    
+    .file-info {
+      font-size: 13px;
+      color: #666;
+      margin-top: 8px;
+    }
+    
+    .bukti-note {
+      font-size: 12px;
+      color: #856404;
+      margin-top: 8px;
+      font-style: italic;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>Absensi Pulang</h2>
-    
+    <h2>🏃 Absensi Pulang</h2>
+
     <div class="time-info">
-      <p>⏰ Jam Absen Pulang: 15:00 - 17:00 WIB</p>
+      <p>⏰ Jam Absen Pulang: 15:00 - 16:00 WIB</p>
     </div>
-    
+
     <div class="info-box">
-      <p><strong>Petunjuk:</strong><br>
-      Pastikan wajah Anda terlihat jelas dan berada dalam area sekolah. Anda harus sudah absen masuk untuk bisa absen pulang.</p>
+      <p><strong>⚠️ PERHATIAN:</strong></p>
+      <ul style="padding-left: 20px; margin-top: 8px;">
+        <li>Absen pulang HANYA bisa dilakukan antara jam 15:00 - 16:00 WIB</li>
+        <li>Jika pulang sebelum jam 15:00, wajib mengisi alasan + upload bukti surat</li>
+        <li>Setelah jam 16:00, absen pulang tidak bisa dilakukan</li>
+      </ul>
     </div>
-    
+
     <video id="video" autoplay playsinline></video>
-    <button id="capture" disabled>Memuat Kamera...</button>
-    <canvas id="canvas"></canvas>
-    
-    <div class="back-link">
-      <a href="/">← Kembali ke Beranda</a>
+
+    <!-- ============= FORM ALASAN PULANG CEPAT ============= -->
+    <div id="alasanSection" style="display:none; margin-top:15px; text-align:left;">
+      <label for="alasanInput"><b>📝 Alasan Pulang Cepat</b></label>
+      <textarea id="alasanInput" placeholder="Contoh: Sakit, izin dokter, keperluan keluarga..." maxlength="200"></textarea>
+      <small style="color:#666;">Wajib diisi jika pulang sebelum jam 15:00 WIB</small>
     </div>
+
+    <!-- ============= SECTION BARU: UPLOAD BUKTI SURAT ============= -->
+    <div id="buktiSuratSection" class="bukti-surat-section">
+      <h4>📄 Upload Bukti Surat Izin</h4>
+      <input type="file" id="buktiSuratInput" accept="image/*" style="display:none;" onchange="previewBuktiSurat(this)">
+      <label for="buktiSuratInput" class="upload-label">
+        📷 Pilih Foto Surat Izin
+      </label>
+      <div id="filePreview" class="file-preview">
+        <p style="font-weight:600; color:#28a745;">✅ File terpilih:</p>
+        <p class="file-info" id="fileName"></p>
+        <img id="previewImage" alt="Preview Surat">
+      </div>
+      <p class="bukti-note">
+        * Wajib upload foto surat izin dari orang tua/wali atau surat keterangan resmi untuk pulang cepat
+      </p>
+    </div>
+
+    <button id="capture" disabled>Memuat Kamera...</button>
+
+    <div class="back-link"><a href="/">← Kembali ke Beranda</a></div>
   </div>
 
+  <canvas id="canvas" style="display:none;"></canvas>
+
   <script>
-  const video = document.getElementById("video");
-  const canvas = document.getElementById("canvas");
-  const context = canvas.getContext("2d");
-  const captureBtn = document.getElementById("capture");
-  let userLocation = null;
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const captureBtn = document.getElementById("capture");
+    let userLocation = null;
 
-  // Aktifkan kamera
-  navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
-    .then(stream => {
-      video.srcObject = stream;
-      console.log("✅ Kamera aktif");
-    })
-    .catch(err => {
-      console.error("❌ Kamera error:", err);
-      Swal.fire("Kamera Error", "Tidak bisa mengakses kamera. Periksa izin browser.", "error")
-        .then(() => window.location.href="/");
-    });
-
-  // Ambil lokasi GPS
-  async function getLocation() {
-    return new Promise((resolve, reject) => {
-      if (!navigator.geolocation) return reject("Browser tidak mendukung GPS.");
-      navigator.geolocation.getCurrentPosition(
-        pos => resolve({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude
-        }),
-        err => {
-          if (err.code === 1) reject("Izin lokasi ditolak.");
-          else if (err.code === 2) reject("Lokasi tidak tersedia.");
-          else if (err.code === 3) reject("Timeout saat mengambil lokasi.");
-          else reject("GPS error: " + err.message);
-        },
-        { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 }
-      );
-    });
-  }
-
-  // Inisialisasi sistem
-  window.addEventListener("load", async () => {
-    try {
-      userLocation = await getLocation();
-      console.log("✅ Lokasi:", userLocation);
-      captureBtn.disabled = false;
-      captureBtn.textContent = "🏃 Absen Pulang Sekarang";
-    } catch (e) {
-      console.error(e);
-      captureBtn.textContent = "GPS Tidak Tersedia";
-      Swal.fire({
-        icon: "warning",
-        title: "📍 Lokasi Tidak Aktif",
-        html: `Aplikasi ini memerlukan akses lokasi.<br>Aktifkan GPS di perangkat Anda.`,
-        confirmButtonText: "🔄 Coba Lagi",
-        confirmButtonColor: "#28a745"
-      }).then(async () => {
-        try {
-          userLocation = await getLocation();
-          if (userLocation) {
-            captureBtn.disabled = false;
-            captureBtn.textContent = "🏃 Absen Pulang Sekarang";
-            Swal.fire("✅ Lokasi Aktif", "GPS berhasil, lanjutkan absensi.", "success");
-          }
-        } catch (err) {
-          Swal.fire("⚠️ Masih Gagal", "Pastikan GPS aktif.", "error");
-        }
-      });
-    }
-  });
-
-  // ============= TOMBOL ABSEN PULANG (LENGKAP) =============
-  captureBtn.onclick = async () => {
-    if (!userLocation) {
-      return Swal.fire("GPS Error", "Lokasi belum tersedia.", "error");
-    }
-
-    captureBtn.disabled = true;
-    captureBtn.textContent = "⏳ Memproses...";
-
-    Swal.fire({
-      title: "Memproses absen pulang...",
-      html: "Mendeteksi wajah & validasi...",
-      allowOutsideClick: false,
-      didOpen: () => Swal.showLoading()
-    });
-
-    try {
-      // ============= FIX MIRROR SAAT CAPTURE =============
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      
-      // Flip horizontal agar hasil foto normal
-      context.translate(canvas.width, 0);
-      context.scale(-1, 1);
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      
-      // Reset transformasi
-      context.setTransform(1, 0, 0, 1, 0, 0);
-      // ===================================================
-
-      canvas.toBlob(async blob => {
-        const formData = new FormData();
-        formData.append("foto", blob, "absen_pulang.jpg");
-        formData.append("lat", userLocation.lat);
-        formData.append("lng", userLocation.lng);
-
-        try {
-          const res = await fetch("/absen_pulang", { method: "POST", body: formData });
-          const data = await res.json();
-
-          if (data.success) {
-            Swal.fire({
-              icon: "success",
-              title: "Absen Pulang Berhasil! 🎉",
-              html: `
-                <div style="text-align:left; background:#f8f9fa; padding:15px; border-radius:8px; margin:10px 0;">
-                  <p><strong>📝 Nama:</strong> ${data.nama}</p>
-                  <p><strong>🏫 Kelas:</strong> ${data.kelas}</p>
-                  <p><strong>📚 Jurusan:</strong> ${data.jurusan}</p>
-                  <p><strong>✅ Status:</strong> <span style="background:#28a745;color:#fff;padding:4px 8px;border-radius:4px;">${data.status}</span></p>
-                  <p><strong>⏰ Waktu:</strong> ${data.waktu} WIB</p>
-                </div>
-              `,
-              confirmButtonText: "📋 Lihat Data",
-              confirmButtonColor: "#28a745"
-            }).then(() => window.location.href = data.redirect);
-          } else {
-            Swal.fire({
-              icon: "error",
-              title: "Absen Pulang Gagal ❌",
-              text: data.message,
-              confirmButtonColor: "#dc3545"
-            });
-          }
-        } catch(err) {
-          console.error(err);
-          Swal.fire("Error", "Tidak dapat mengirim data ke server.", "error");
-        }
-      }, "image/jpeg", 0.95);
-
-    } catch(err) {
-      console.error(err);
-      Swal.fire("Error Kamera", "Gagal mengambil foto.", "error");
-    } finally {
-      setTimeout(() => {
+    // Aktifkan kamera
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+      .then(stream => {
+        video.srcObject = stream;
         captureBtn.disabled = false;
         captureBtn.textContent = "🏃 Absen Pulang Sekarang";
-      }, 3000);
+      })
+      .catch(() => {
+        Swal.fire("Kamera Error", "Tidak bisa mengakses kamera. Periksa izin browser.", "error");
+      });
+
+    // Ambil lokasi GPS
+    async function getLocation() {
+      return new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+          pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+          err => reject(err),
+          { enableHighAccuracy: true, timeout: 10000 }
+        );
+      });
     }
-  };
+
+    // ============= CEK JAM & TAMPILKAN ALASAN + BUKTI SURAT ============= 
+    function cekJam() {
+      const now = new Date();
+      // now.setHours(15);
+      // now.setMinutes(30);
+      const jam = now.getHours();
+      const menit = now.getMinutes();
+      const totalMenit = jam * 60 + menit;
+      const mulaiPulang = 15 * 60; // jam 15:00
+      const akhirPulang = 16 * 60; // jam 16:00
+
+      const alasanSection = document.getElementById("alasanSection");
+      const buktiSuratSection = document.getElementById("buktiSuratSection");
+
+      // Jika SEBELUM jam 15:00 - tampilkan alasan + bukti surat
+      if (totalMenit < mulaiPulang) {
+        alasanSection.style.display = "block";
+        buktiSuratSection.classList.add("show");
+      } 
+      // Jika antara 15:00 - 16:00 - sembunyikan alasan + bukti
+      else if (totalMenit >= mulaiPulang && totalMenit <= akhirPulang) {
+        alasanSection.style.display = "none";
+        buktiSuratSection.classList.remove("show");
+        document.getElementById("alasanInput").value = "";
+      }
+      // Jika SETELAH jam 16:00 - disable tombol
+      else {
+        captureBtn.disabled = true;
+        captureBtn.textContent = "❌ Waktu Absen Pulang Sudah Lewat";
+        Swal.fire({
+          icon: 'warning',
+          title: '⏰ Waktu Absen Sudah Lewat',
+          html: 'Absen pulang hanya bisa dilakukan antara jam 15:00 - 16:00 WIB.<br><br>Silakan hubungi guru/admin jika ada masalah.',
+          confirmButtonColor: '#dc3545'
+        });
+      }
+
+      console.log("🕒 Jam sekarang:", jam + ":" + menit, "| Tampil alasan+bukti?", totalMenit < mulaiPulang);
+    }
+
+    window.addEventListener("load", cekJam);
+
+    // ============= PREVIEW BUKTI SURAT ============= 
+    function previewBuktiSurat(input) {
+      const file = input.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          document.getElementById('previewImage').src = e.target.result;
+          document.getElementById('fileName').textContent = file.name;
+          document.getElementById('filePreview').classList.add('show');
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    // ============= TOMBOL CAPTURE (UPDATE DENGAN VALIDASI BUKTI) ============= 
+    captureBtn.onclick = async () => {
+      try {
+        // Pastikan kamera siap
+        if (video.videoWidth === 0) {
+          return Swal.fire("Kamera Belum Siap", "Tunggu 1–2 detik sampai video tampil.", "warning");
+        }
+
+        userLocation = await getLocation();
+
+        // Ambil frame dari kamera
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+        // Siapkan form data
+        const blob = await new Promise(res => canvas.toBlob(res, "image/jpeg", 0.9));
+        const formData = new FormData();
+        formData.append("foto", blob, "pulang.jpg");
+        formData.append("lat", userLocation.lat);
+        formData.append("lng", userLocation.lng);
+        formData.append("alasan", document.getElementById("alasanInput").value.trim());
+
+        // ============= VALIDASI BUKTI SURAT (FRONTEND) ============= 
+        const buktiSuratInput = document.getElementById("buktiSuratInput");
+        const alasanSection = document.getElementById("alasanSection");
+        
+        // Jika section alasan tampil (pulang cepat), wajib upload bukti
+        if (alasanSection.style.display === "block") {
+          if (!buktiSuratInput.files || buktiSuratInput.files.length === 0) {
+            return Swal.fire({
+              icon: 'error',
+              title: '📄 Bukti Surat Wajib Diupload!',
+              text: 'Anda pulang cepat, silakan upload foto surat izin dari orang tua/wali , Dan sertakana alasan pulang cpeat.',
+              confirmButtonColor: '#dc3545'
+            });
+          }
+          // Append bukti surat ke formData
+          formData.append("bukti_surat", buktiSuratInput.files[0]);
+        }
+
+        Swal.fire({
+          title: "Memproses absen pulang...",
+          html: "Mendeteksi wajah & validasi...",
+          allowOutsideClick: false,
+          didOpen: () => Swal.showLoading()
+        });
+
+        const resp = await fetch("/absen_pulang", { method: "POST", body: formData });
+        const data = await resp.json();
+
+        if (data.success) {
+          Swal.fire({
+            icon: "success",
+            title: "Absen Pulang Berhasil 🎉",
+            html: `
+              <p><b>Nama:</b> ${data.nama}</p>
+              <p><b>Kelas:</b> ${data.kelas}</p>
+              <p><b>Jurusan:</b> ${data.jurusan}</p>
+              <p><b>Status:</b> ${data.status}</p>
+              <p><b>Waktu:</b> ${data.waktu} WIB</p>
+              ${data.alasan ? `<p><b>Alasan:</b> ${data.alasan}</p>` : ""}
+            `,
+            confirmButtonColor: "#28a745"
+          }).then(() => window.location.href = data.redirect);
+        } else {
+          Swal.fire("Gagal", data.message, "error");
+        }
+      } catch (err) {
+        console.error(err);
+        Swal.fire("Error", "Gagal mengambil foto atau koneksi ke server.", "error");
+      }
+    };
   </script>
 </body>
 </html>

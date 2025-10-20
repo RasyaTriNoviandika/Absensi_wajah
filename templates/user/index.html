@@ -364,7 +364,9 @@
                     <br>
                     ⏰ <strong>Jam absen pulang:</strong> 15:00 - 17:00 WIB<br>
                     <br>
-                    ⚠️ <em>Harus sudah absen masuk terlebih dahulu!</em>
+                    <strong>⚠️Perlu dicatat , untuk siswa yang pulang dibawah jam 3 , diharuskan untuk input alasan pulang nya dan uplaod foto bukti surat bawah dia izin(pulang cepat)</strong>
+                    <hr>
+                     <em>⚠️Harus sudah absen masuk terlebih dahulu!</em>
                 </p>
             </div>
             
@@ -437,20 +439,21 @@
 
     <!-- Tombol utama -->
     <div class="options">
-        <a href="{{ url_for('absen_harian') }}" class="option-btn primary-btn" id="absenBtn">
+        <a href="{{ url_for('register_user') }}" class="option-btn secondary-btn ">
+            <span class="icon">🧑‍🎓</span>
+            <span>Daftar Siswa Baru</span>
+        </a>
+
+        <a href="{{ url_for('absen_harian') }}" class="option-btn secondary-btn" id="absenBtn">
             <span class="icon">📸</span>
             <span>Absen Sekarang</span>
         </a>
 
         <a href="{{url_for('absen_pulang_harian')}}" class="option-btn secondary-btn">
-            <span class="icon">🏃</span>
+            <span class="icon">🕒</span>
             <span>Absen Pulang</span>
         </a>
 
-        <a href="{{ url_for('register_user') }}" class="option-btn secondary-btn">
-            <span class="icon">👤</span>
-            <span>Daftar Siswa Baru</span>
-        </a>
 
         <a href="{{ url_for('absensi_user') }}" class="option-btn secondary-btn">
             <span class="icon">📋</span>

@@ -105,7 +105,7 @@
     table {
         width: 100%;
         border-collapse: collapse;
-        min-width: 700px;
+        min-width: 900px;
     }
 
     th, td {
@@ -153,11 +153,93 @@
         color: #856404;
         border: 1px solid #ffeaa7;
     }
+    
+    .status-pulang-cepat {
+        background: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffc107;
+    }
 
     .status-alpha {
         background: #f8d7da;
         color: #721c24;
         border: 1px solid #f5c6cb;
+    }
+    
+    /* Bukti surat styling */
+    .bukti-preview {
+        width: 50px;
+        height: 50px;
+        object-fit: cover;
+        border-radius: 6px;
+        cursor: pointer;
+        border: 2px solid #ddd;
+        transition: transform 0.2s, border-color 0.2s;
+    }
+
+    .bukti-preview:hover {
+        transform: scale(1.1);
+        border-color: #007bff;
+        box-shadow: 0 2px 8px rgba(0,123,255,0.3);
+    }
+
+    .no-bukti {
+        color: #999;
+        font-style: italic;
+        font-size: 13px;
+    }
+
+    /* Modal untuk preview gambar */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 9999;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.95);
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal.active {
+        display: flex;
+    }
+
+    .modal-content {
+        max-width: 90%;
+        max-height: 90%;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        animation: zoomIn 0.3s ease;
+    }
+
+    @keyframes zoomIn {
+        from {
+            transform: scale(0.5);
+            opacity: 0;
+        }
+        to {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+
+    .modal-close {
+        position: absolute;
+        top: 20px;
+        right: 30px;
+        color: #fff;
+        font-size: 40px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: color 0.3s;
+        z-index: 10000;
+    }
+
+    .modal-close:hover {
+        color: #ff4444;
     }
 
     /* Responsive mobile → card view */
@@ -202,7 +284,7 @@
         }
         td::before {
             content: attr(data-label);
-            flex: 0 0 110px;
+            flex: 0 0 140px;
             font-weight: 600;
             color: #666;
             text-transform: uppercase;
@@ -273,42 +355,82 @@
             <th>Jam Masuk</th>
             <th>Status Pulang</th>
             <th>Jam Pulang</th>
+            <th>Alasan Pulang Cepat</th>
+            <th>Bukti Surat</th> <!-- KOLOM BARU -->
         </tr>
     </thead>
-  <tbody>
-    {% for a in absensi %}
-<tr>
-  <td data-label="No">{{ loop.index }}</td>
-  <td data-label="No. Absen">{{ a[3] }}</td>  <!-- INDEX 3 = nomor_absen -->
-  <td data-label="Nama">{{ a[0] }}</td>
-  <td data-label="Kelas">{{ a[1] }}</td>
-  <td data-label="Jurusan">{{ a[2] }}</td>
-  <td data-label="Status Masuk">
-    {% if "HADIR" in a[4] %}
-      <span class="status-badge status-hadir">{{ a[4] }}</span>
-    {% elif "TERLAMBAT" in a[4] or "DILUAR AREA" in a[4] %}
-      <span class="status-badge status-terlambat">{{ a[4] }}</span>
-    {% else %}
-      <span class="status-badge status-alpha">{{ a[4] }}</span>
-    {% endif %}
-  </td>
-  <td data-label="Waktu Masuk">{{ a[5] }}</td>
-  <td data-label="Status Pulang">
-    {% if a[6] %}
-      <span class="status-badge status-hadir">{{ a[6] }}</span>
-    {% else %}
-      <span style="color:#999;">Belum Pulang</span>
-    {% endif %}
-  </td>
-  <td data-label="Waktu Pulang">
-    {% if a[7] %}
-      {{ a[7] }}
-    {% else %}
-      <span style="color:#999;">-</span>
-    {% endif %}
-  </td>
-</tr>
-{% endfor %}
+ <tbody>
+  {% for a in absensi %}
+  <tr>
+    <td data-label="No">{{ loop.index }}</td>
+    <td data-label="No. Absen">{{ a[3] }}</td> 
+    <td data-label="Nama">{{ a[0] }}</td>
+    <td data-label="Kelas">{{ a[1] }}</td>
+    <td data-label="Jurusan">{{ a[2] }}</td>
+
+    <!-- Status Masuk -->
+    <td data-label="Status Masuk">
+      {% if "HADIR" in a[4] %}
+        <span class="status-badge status-hadir">{{ a[4] }}</span>
+      {% elif "TERLAMBAT" in a[4] or "DILUAR AREA" in a[4] %}
+        <span class="status-badge status-terlambat">{{ a[4] }}</span>
+      {% else %}
+        <span class="status-badge status-alpha">{{ a[4] }}</span>
+      {% endif %}
+    </td>
+
+    <!-- Jam Masuk -->
+    <td data-label="Jam Masuk">{{ a[5] }}</td>
+
+    <!-- Status Pulang -->
+    <td data-label="Status Pulang">
+      {% if a[7] %}
+        {% if a[7] == 'PULANG CEPAT' %}
+          <span class="status-badge status-pulang-cepat">⚠️ {{ a[7] }}</span>
+        {% else %}
+          <span class="status-badge status-hadir">{{ a[7] }}</span>
+        {% endif %}
+      {% else %}
+        <span style="color:#999;">Belum Pulang</span>
+      {% endif %}
+    </td>
+
+    <!-- Jam Pulang -->
+    <td data-label="Jam Pulang">
+      {% if a[8] %}
+        {{ a[8] }}
+      {% else %}
+        <span style="color:#999;">-</span>
+      {% endif %}
+    </td>
+
+    <!-- Alasan Pulang Cepat -->
+    <td data-label="Alasan Pulang Cepat">
+      {% if a[6] %}
+        {{ a[6] }}
+      {% else %}
+        <span class="no-bukti">-</span>
+      {% endif %}
+    </td>
+
+    <!-- Bukti Surat (KOLOM BARU) -->
+    <td data-label="Bukti Surat">
+      {% if a[9] %}
+        <img src="{{ url_for('serve_bukti_surat_user', filename=a[9]) }}" 
+             class="bukti-preview" 
+             onclick="openImageModal('{{ url_for('serve_bukti_surat_user', filename=a[9]) }}')"
+             alt="Bukti Surat"
+             title="Klik untuk memperbesar">
+      {% else %}
+        {% if a[7] == 'PULANG CEPAT' %}
+          <span class="no-bukti">❌ Tidak ada</span>
+        {% else %}
+          <span class="no-bukti">-</span>
+        {% endif %}
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
 </tbody>
 </table>
         {% else %}
@@ -325,5 +447,46 @@
     
     </div>
 </div>
+
+<!-- Modal Preview Bukti Surat -->
+<div id="buktiModal" class="modal" onclick="closeImageModal()">
+    <span class="modal-close" onclick="closeImageModal()">&times;</span>
+    <img class="modal-content" id="buktiModalImg" alt="Bukti Surat">
+</div>
+
+<script>
+// Fungsi buka modal preview bukti surat
+function openImageModal(imgSrc) {
+    const modal = document.getElementById('buktiModal');
+    const modalImg = document.getElementById('buktiModalImg');
+    
+    modal.classList.add('active');
+    modalImg.src = imgSrc;
+    
+    // Prevent body scroll
+    document.body.style.overflow = 'hidden';
+}
+
+// Fungsi tutup modal
+function closeImageModal() {
+    const modal = document.getElementById('buktiModal');
+    modal.classList.remove('active');
+    
+    // Restore body scroll
+    document.body.style.overflow = 'auto';
+}
+
+// Close modal dengan ESC key
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeImageModal();
+    }
+});
+
+// Prevent modal close when clicking on image
+document.getElementById('buktiModalImg')?.addEventListener('click', function(e) {
+    e.stopPropagation();
+});
+</script>
 </body>
 </html>

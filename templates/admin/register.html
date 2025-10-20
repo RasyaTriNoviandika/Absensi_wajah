@@ -298,23 +298,48 @@
                 <div class="error" id="kelas-error">Pilih kelas terlebih dahulu!</div>
             </div>
 
-            <div class="form-group">
-                <label>Jurusan <span class="required">*</span></label>
-                <div class="radio-group">
-                    <label class="radio-item">
-                        <input type="radio" name="jurusan" value="SIJA" required>
-                        <span>SIJA</span>
-                    </label>
-                    <label class="radio-item">
-                        <input type="radio" name="jurusan" value="DKV" required>
-                        <span>DKV</span>
-                    </label>
-                    <label class="radio-item">
-                        <input type="radio" name="jurusan" value="PB" required>
-                        <span>PB</span>
-                    </label>
-                <div class="error" id="jurusan-error">Pilih jurusan terlebih dahulu!</div>
+         <div class="form-group">
+            <label>Jurusan <span class="required">*</span></label>
+            <div class="radio-group">
+                <label class="radio-item">
+                    <input type="radio" name="jurusan" value="SIJA1" required>
+                    <span>SIJA 1</span>
+                </label>
+                <label class="radio-item">
+                    <input type="radio" name="jurusan" value="SIJA2" required>
+                    <span>SIJA 2</span>
+                </label>
+                <label class="radio-item">
+                    <input type="radio" name="jurusan" value="SIJA3" required>
+                    <span>SIJA 3</span>
+                </label>
+                <label class="radio-item">
+                    <input type="radio" name="jurusan" value="DKV1" required>
+                    <span>DKV 1</span>
+                </label>
+                <label class="radio-item">
+                    <input type="radio" name="jurusan" value="DKV2" required>
+                    <span>DKV 2</span>
+                </label>
+                <label class="radio-item">
+                    <input type="radio" name="jurusan" value="DKV3" required>
+                    <span>DKV 3</span>
+                </label>
+                <label class="radio-item">
+                    <input type="radio" name="jurusan" value="PB1" required>
+                    <span>PB 1</span>
+                </label>
+                <label class="radio-item">
+                    <input type="radio" name="jurusan" value="PB2" required>
+                    <span>PB 2</span>
+                </label>
+                <label class="radio-item">
+                    <input type="radio" name="jurusan" value="PB3" required>
+                    <span>PB 3</span>
+                </label>
             </div>
+            <div class="error" id="jurusan-error">Pilih jurusan terlebih dahulu!</div>
+        </div>
 
             <div class="form-group">
                 <label for="foto">Foto Wajah <span class="required">*</span></label>
@@ -331,7 +356,7 @@
         </form>
 
         <div class="back-link">
-            <a href="{{ url_for('admin_index') }}">← Kembali ke Dashboard Admin</a>
+            <a href="{{ url_for('admin_index') }}">← Kembali Ke Beranda</a>
         </div>
     </div>
 
