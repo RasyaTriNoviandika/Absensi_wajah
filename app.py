@@ -42,13 +42,13 @@ app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_TYPE'] = 'filesystem'
 
 # ---------------- Konstanta Default ----------------
-# SCHOOL_LAT = -6.2706589
-# SCHOOL_LNG = 106.9593685
-# RADIUS = 20
+SCHOOL_LAT = -6.2706589
+SCHOOL_LNG = 106.9593685
+RADIUS = 100
 
-SCHOOL_LAT = -6.2635512
-SCHOOL_LNG = 106.9690768
-RADIUS = 50
+# SCHOOL_LAT = -6.2635512
+# SCHOOL_LNG = 106.9690768
+# RADIUS = 50
 
 DB_NAME = "database.db"
 FACES_DIR = "faces"
