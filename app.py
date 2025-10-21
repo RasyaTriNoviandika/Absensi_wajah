@@ -16,7 +16,8 @@ import secrets
 import os
 import numpy as np
 from flask import send_from_directory
-
+from functools import wraps
+import time
 
 # ============= KONSTANTA & FUNGSI HELPER HARUS DI ATAS! =============
 SECRET_KEY_FILE = '.secret_key'
@@ -36,6 +37,19 @@ def get_or_create_secret_key():
 # ============= BARU BISA BUAT APP =============
 app = Flask(__name__)
 
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
+# Initialize rate limiter
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://"  # Gunakan memory storage (simple)
+)
+
+print("✅ Rate limiter activated!")
+
 # ============= KONFIGURASI KEAMANAN =============
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or get_or_create_secret_key()
 app.config['SESSION_PERMANENT'] = False
@@ -44,7 +58,11 @@ app.config['SESSION_TYPE'] = 'filesystem'
 # ---------------- Konstanta Default ----------------
 SCHOOL_LAT = -6.2706589
 SCHOOL_LNG = 106.9593685
-RADIUS = 100
+RADIUS = 50
+
+# SCHOOL_LAT = -6.2706589
+# SCHOOL_LNG = 106.9593685
+# RADIUS = 1500  # ubah dari 100 ke 1500 meter
 
 # SCHOOL_LAT = -6.2635512
 # SCHOOL_LNG = 106.9690768
@@ -66,6 +84,19 @@ app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
 
 # Allowed extensions
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
+
+def monitor_performance(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        start_time = time.time()
+        result = f(*args, **kwargs)
+        end_time = time.time()
+        
+        duration = end_time - start_time
+        app.logger.info(f"⏱️ {f.__name__} executed in {duration:.2f}s")
+        
+        return result
+    return decorated_function
 
 def get_settings():
     conn = sqlite3.connect(DB_NAME)
@@ -238,7 +269,7 @@ def buat_admin_default():
     
     if count == 0:
         # Buat admin default: username=admin, password=admin123
-        password_hash = generate_password_hash('gurusija')
+        password_hash = generate_password_hash('guru_sija23')
         cur.execute(
             "INSERT INTO admin (username, password_hash) VALUES (?, ?)",
             ('admin', password_hash)
@@ -686,6 +717,7 @@ def generate_nomor_absen(kelas, jurusan):
 
 # ============= ROUTES LOGIN ADMIN =============
 @app.route("/admin/login", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
 def admin_login():
     if request.method == "POST":
         username = request.form["username"].strip()
@@ -740,8 +772,8 @@ def reset_db():
     return redirect(url_for("admin_index"))
 
 # -------- USER (Tidak perlu login) --------
-# ============= PERBAIKAN ROUTE REGISTER_USER - DENGAN VALIDASI DUPLIKASI =============
 @app.route("/register", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
 def register_user():
     if request.method == "POST":
         nama = request.form.get("nama")
@@ -874,7 +906,328 @@ def potret_user():
 
     return render_template("user/potret.html", siswa=siswa)
 
-# # Ini route absen mode test
+@app.route("/absen", methods=["POST"])
+@monitor_performance
+@limiter.limit("10 per minute")
+def absen():
+    """Proses absensi siswa (bisa mode normal / test)"""
+    try:
+        file = request.files["foto"]
+        lat = float(request.form["lat"])
+        lng = float(request.form["lng"])
+
+        filename = f"{uuid.uuid4().hex}.jpg"
+        filepath = os.path.join(UPLOAD_DIR, filename)
+        file.save(filepath)
+        
+        print(f"\n{'='*50}")
+        print(f"📸 PROSES ABSENSI DIMULAI")
+        print(f"📁 File: {filename}")
+        print(f"📍 Lokasi Asli Device: {lat}, {lng}")
+        print(f"{'='*50}\n")
+
+        # Ambil area absensi dari DB
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+        cur.execute("SELECT latitude, longitude, radius FROM settings WHERE id=1")
+        row = cur.fetchone()
+        conn.close()
+
+        school_lat, school_lng, radius = row
+        jarak = hitung_jarak(lat, lng, school_lat, school_lng)
+        
+        print(f"📏 Jarak dari sekolah: {jarak:.2f} meter")
+        print(f"📏 Radius yang diizinkan: {radius} meter")
+
+        # ======================
+        # ⚙️ MODE TEST
+        # True  = Abaikan radius & jam (bisa absen dari mana saja)
+        # False = Aktifkan validasi normal
+        # ======================
+        TEST_MODE = False
+
+        # 🚫 Validasi lokasi (bisa dilewati kalau TEST_MODE aktif)
+        if not TEST_MODE:
+            if jarak > radius:
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+                print(f"❌ ABSENSI DITOLAK: Lokasi di luar area ({jarak:.0f}m > {radius}m)\n")
+                return jsonify({
+                    "success": False, 
+                    "message": f"❌ Absensi gagal! Anda berada di luar area absensi.\n\n"
+                              f"📍 Jarak Anda: {jarak:.0f} meter dari sekolah\n"
+                              f"📍 Radius maksimal: {radius} meter\n\n"
+                              f"Silakan dekati area sekolah untuk melakukan absensi."
+                })
+        else:
+            print(f"⚙️ TEST MODE AKTIF: Validasi jarak dilewati (jarak {jarak:.2f}m)")
+            # ✅ Override lokasi agar marker di peta tetap di area sekolah
+            lat = school_lat
+            lng = school_lng
+            print(f"📍 Lokasi diset ke titik sekolah: {lat}, {lng}")
+
+        # PENCOCOKAN WAJAH
+        print(f"\n🔍 Memulai pencocokan wajah...")
+        siswa = cari_siswa_dengan_wajah(filepath)
+
+        if os.path.exists(filepath):
+            os.remove(filepath)
+            print(f"🗑️ File temporary dihapus")
+
+        if not siswa:
+            print(f"\n❌ ABSENSI GAGAL: Wajah tidak dikenali\n")
+            return jsonify({
+                "success": False, 
+                "message": "❌ Wajah tidak dikenali! Pastikan Anda sudah terdaftar dan foto jelas."
+            })
+
+        print(f"\n✅ Wajah dikenali: {siswa['nama']}")
+        print(f"📊 Confidence: {1 - siswa['distance']:.2%}")
+
+        # Waktu lokal WIB
+        waktu_lokal = datetime.utcnow() + timedelta(hours=7)
+        tanggal_hari_ini = waktu_lokal.date()
+        jam_sekarang = waktu_lokal.time()
+
+        jam_mulai_masuk = datetime.strptime("06:00", "%H:%M").time()
+        jam_akhir_masuk = datetime.strptime("07:30", "%H:%M").time()
+
+        # 🚫 Validasi jam masuk (bisa dilewati kalau TEST_MODE aktif)
+        if not TEST_MODE:
+            if jam_sekarang < jam_mulai_masuk:
+                print(f"⏰ Belum waktunya absen masuk")
+                return jsonify({
+                    "success": False,
+                    "message": f"⏰ Absen masuk hanya bisa dilakukan mulai jam 06:00 WIB.\n\n"
+                              f"Sekarang jam {waktu_lokal.strftime('%H:%M')} WIB.\n"
+                              f"Silakan kembali saat waktu absensi."
+                })
+        else:
+            print(f"⚙️ TEST MODE AKTIF: Validasi jam dilewati ({waktu_lokal.strftime('%H:%M')})")
+
+        # Tentukan status berdasarkan waktu
+        if jam_sekarang > jam_akhir_masuk:
+            status = "TERLAMBAT"
+            print(f"⏰ Status waktu: TERLAMBAT")
+        else:
+            status = "HADIR"
+            print(f"⏰ Status waktu: TEPAT WAKTU")
+
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+
+        # Cek apakah sudah absen hari ini
+        cur.execute("""
+            SELECT id FROM absensi
+            WHERE siswa_id = ? AND DATE(waktu) = ?
+        """, (siswa["id"], tanggal_hari_ini))
+        sudah_absen = cur.fetchone()
+
+        if sudah_absen:
+            conn.close()
+            print(f"⚠️ Siswa sudah absen hari ini")
+            return jsonify({
+                "success": False, 
+                "message": f"⚠️ {siswa['nama']} sudah melakukan absensi masuk hari ini!\n\nSilakan absen besok atau lakukan absensi pulang saat waktunya."
+            })
+
+        # Simpan absensi baru
+        cur.execute("""
+            INSERT INTO absensi (siswa_id, nama, kelas, jurusan, latitude, longitude, status, waktu) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (siswa["id"], siswa["nama"], siswa["kelas"], siswa["jurusan"], lat, lng, status, waktu_lokal))
+        conn.commit()
+        conn.close()
+        
+        print(f"\n🎉 ABSENSI BERHASIL DISIMPAN")
+        print(f"{'='*50}\n")
+
+        session['siswa_id'] = siswa['id']
+        session['siswa_nama'] = siswa['nama']
+        session['siswa_kelas'] = siswa['kelas']
+        session['siswa_jurusan'] = siswa['jurusan']
+
+        return jsonify({
+            "success": True,
+            "redirect": url_for("absensi_user"),
+            "nama": siswa["nama"],
+            "kelas": siswa["kelas"],
+            "jurusan": siswa["jurusan"],
+            "status": status
+        })
+
+    except Exception as e:
+        if 'filepath' in locals() and os.path.exists(filepath):
+            os.remove(filepath)
+        
+        print(f"\n❌ ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        return jsonify({"success": False, "message": f"❌ Terjadi kesalahan sistem: {str(e)}"})
+
+# # ===========================================
+# # ⚙️ KONFIGURASI SISTEM
+# # ===========================================
+# TEST_MODE = False  # True = mode bebas lokasi & jam | False = mode real (production)
+# # ===========================================
+
+# @app.route("/absen", methods=["POST"])
+# def absen():
+#     """Proses absensi siswa (mode test aktif: bebas lokasi & jam)"""
+#     try:
+#         global TEST_MODE
+
+#         file = request.files["foto"]
+#         lat = float(request.form["lat"])
+#         lng = float(request.form["lng"])
+
+#         filename = f"{uuid.uuid4().hex}.jpg"
+#         filepath = os.path.join(UPLOAD_DIR, filename)
+#         file.save(filepath)
+
+#         print(f"\n{'='*50}")
+#         print(f"📸 PROSES ABSENSI DIMULAI")
+#         print(f"📁 File: {filename}")
+#         print(f"📍 Lokasi: {lat}, {lng}")
+#         print(f"🔧 MODE: {'TEST' if TEST_MODE else 'PRODUCTION'}")
+#         print(f"{'='*50}\n")
+
+#         # Ambil area absensi dari DB
+#         conn = sqlite3.connect(DB_NAME)
+#         cur = conn.cursor()
+#         cur.execute("SELECT latitude, longitude, radius FROM settings WHERE id=1")
+#         row = cur.fetchone()
+#         conn.close()
+
+#         school_lat, school_lng, radius = row
+#         jarak = hitung_jarak(lat, lng, school_lat, school_lng)
+
+#         print(f"📏 Jarak dari sekolah: {jarak:.2f} meter")
+#         print(f"📏 Radius yang diizinkan: {radius} meter")
+
+#         # ==================================================
+#         # 🚫 Validasi lokasi
+#         # ==================================================
+#         if not TEST_MODE:
+#             if jarak > radius:
+#                 os.remove(filepath)
+#                 print(f"❌ ABSENSI DITOLAK: Lokasi di luar area ({jarak:.0f}m > {radius}m)\n")
+#                 return jsonify({
+#                     "success": False,
+#                     "message": f"❌ Absensi gagal! Anda berada di luar area absensi.\n\n"
+#                               f"📍 Jarak Anda: {jarak:.0f} meter dari sekolah\n"
+#                               f"📍 Radius maksimal: {radius} meter\n\n"
+#                               f"Silakan dekati area sekolah untuk melakukan absensi."
+#                 })
+#         else:
+#             print(f"⚙️ TEST MODE AKTIF: Validasi jarak dilewati (jarak {jarak:.2f}m)")
+
+#         # ==================================================
+#         # 🔍 Pencocokan wajah
+#         # ==================================================
+#         print(f"\n🔍 Memulai pencocokan wajah...")
+#         siswa = cari_siswa_dengan_wajah(filepath)
+
+#         if os.path.exists(filepath):
+#             os.remove(filepath)
+#             print(f"🗑️ File temporary dihapus")
+
+#         if not siswa:
+#             print(f"\n❌ ABSENSI GAGAL: Wajah tidak dikenali\n")
+#             return jsonify({
+#                 "success": False,
+#                 "message": "❌ Wajah tidak dikenali! Pastikan Anda sudah terdaftar dan foto jelas."
+#             })
+
+#         print(f"\n✅ Wajah dikenali: {siswa['nama']}")
+#         print(f"📊 Confidence: {1 - siswa['distance']:.2%}")
+
+#         # ==================================================
+#         # 🕒 Validasi waktu
+#         # ==================================================
+#         waktu_lokal = datetime.utcnow() + timedelta(hours=7)
+#         tanggal_hari_ini = waktu_lokal.date()
+#         jam_sekarang = waktu_lokal.time()
+
+#         jam_mulai_masuk = datetime.strptime("06:00", "%H:%M").time()
+#         jam_akhir_masuk = datetime.strptime("07:30", "%H:%M").time()
+
+#         if not TEST_MODE:
+#             if jam_sekarang < jam_mulai_masuk:
+#                 print(f"⏰ Belum waktunya absen masuk")
+#                 return jsonify({
+#                     "success": False,
+#                     "message": f"⏰ Absen masuk hanya bisa dilakukan mulai jam 06:00 WIB.\n\n"
+#                               f"Sekarang jam {waktu_lokal.strftime('%H:%M')} WIB."
+#                 })
+#         else:
+#             print(f"⚙️ TEST MODE AKTIF: Validasi jam dilewati ({waktu_lokal.strftime('%H:%M')})")
+
+#         # Tentukan status waktu
+#         if jam_sekarang > jam_akhir_masuk:
+#             status = "TERLAMBAT"
+#             print(f"⏰ Status waktu: TERLAMBAT")
+#         else:
+#             status = "HADIR"
+#             print(f"⏰ Status waktu: TEPAT WAKTU")
+
+#         # ==================================================
+#         # 💾 Simpan ke database
+#         # ==================================================
+#         conn = sqlite3.connect(DB_NAME)
+#         cur = conn.cursor()
+
+#         cur.execute("""
+#             SELECT id FROM absensi
+#             WHERE siswa_id = ? AND DATE(waktu) = ?
+#         """, (siswa["id"], tanggal_hari_ini))
+#         sudah_absen = cur.fetchone()
+
+#         if sudah_absen:
+#             conn.close()
+#             print(f"⚠️ Siswa sudah absen hari ini")
+#             return jsonify({
+#                 "success": False,
+#                 "message": f"⚠️ {siswa['nama']} sudah melakukan absensi masuk hari ini!"
+#             })
+
+#         cur.execute("""
+#             INSERT INTO absensi (siswa_id, nama, kelas, jurusan, latitude, longitude, status, waktu)
+#             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+#         """, (siswa["id"], siswa["nama"], siswa["kelas"], siswa["jurusan"],
+#               lat, lng, status, waktu_lokal))
+#         conn.commit()
+#         conn.close()
+
+#         print(f"\n🎉 ABSENSI BERHASIL DISIMPAN")
+#         print(f"{'='*50}\n")
+
+#         session['siswa_id'] = siswa['id']
+#         session['siswa_nama'] = siswa['nama']
+#         session['siswa_kelas'] = siswa['kelas']
+#         session['siswa_jurusan'] = siswa['jurusan']
+
+#         return jsonify({
+#             "success": True,
+#             "redirect": url_for("absensi_user"),
+#             "nama": siswa["nama"],
+#             "kelas": siswa["kelas"],
+#             "jurusan": siswa["jurusan"],
+#             "status": status
+#         })
+
+#     except Exception as e:
+#         if 'filepath' in locals() and os.path.exists(filepath):
+#             os.remove(filepath)
+
+#         print(f"\n❌ ERROR: {e}")
+#         import traceback
+#         traceback.print_exc()
+
+#         return jsonify({"success": False, "message": f"❌ Terjadi kesalahan sistem: {str(e)}"})
+
+# # # Ini route absen mode test
 # @app.route("/absen", methods=["POST"])
 # def absen():
 #     """Proses absensi siswa (bisa mode normal / test)"""
@@ -1029,173 +1382,173 @@ def potret_user():
         
 #         return jsonify({"success": False, "message": f"❌ Terjadi kesalahan sistem: {str(e)}"})
 
-@app.route("/absen", methods=["POST"])
-def absen():
-    """Proses absensi siswa dengan STRICT location validation"""
-    try:
-        file = request.files["foto"]
-        lat = float(request.form["lat"])
-        lng = float(request.form["lng"])
+# @app.route("/absen", methods=["POST"])
+# def absen():
+#     """Proses absensi siswa dengan STRICT location validation"""
+#     try:
+#         file = request.files["foto"]
+#         lat = float(request.form["lat"])
+#         lng = float(request.form["lng"])
 
-        filename = f"{uuid.uuid4().hex}.jpg"
-        filepath = os.path.join(UPLOAD_DIR, filename)
-        file.save(filepath)
+#         filename = f"{uuid.uuid4().hex}.jpg"
+#         filepath = os.path.join(UPLOAD_DIR, filename)
+#         file.save(filepath)
 
-        print(f"\n{'=' * 50}")
-        print("📸 PROSES ABSENSI DIMULAI")
-        print(f"📁 File: {filename}")
-        print(f"📍 Lokasi: {lat}, {lng}")
-        print(f"{'=' * 50}\n")
+#         print(f"\n{'=' * 50}")
+#         print("📸 PROSES ABSENSI DIMULAI")
+#         print(f"📁 File: {filename}")
+#         print(f"📍 Lokasi: {lat}, {lng}")
+#         print(f"{'=' * 50}\n")
 
-        # Ambil area absensi dari DB
-        conn = sqlite3.connect(DB_NAME)
-        cur = conn.cursor()
-        cur.execute("SELECT latitude, longitude, radius FROM settings WHERE id=1")
-        row = cur.fetchone()
-        conn.close()
+#         # Ambil area absensi dari DB
+#         conn = sqlite3.connect(DB_NAME)
+#         cur = conn.cursor()
+#         cur.execute("SELECT latitude, longitude, radius FROM settings WHERE id=1")
+#         row = cur.fetchone()
+#         conn.close()
 
-        school_lat, school_lng, radius = row
-        jarak = hitung_jarak(lat, lng, school_lat, school_lng)
+#         school_lat, school_lng, radius = row
+#         jarak = hitung_jarak(lat, lng, school_lat, school_lng)
 
-        print(f"📏 Jarak dari sekolah: {jarak:.2f} meter")
-        print(f"📏 Radius yang diizinkan: {radius} meter")
+#         print(f"📏 Jarak dari sekolah: {jarak:.2f} meter")
+#         print(f"📏 Radius yang diizinkan: {radius} meter")
 
-        # ============= STRICT VALIDATION: BLOCK JIKA DILUAR AREA =============
-        if jarak > radius:
-            # Hapus file temporary
-            if os.path.exists(filepath):
-                os.remove(filepath)
+#         # ============= STRICT VALIDATION: BLOCK JIKA DILUAR AREA =============
+#         if jarak > radius:
+#             # Hapus file temporary
+#             if os.path.exists(filepath):
+#                 os.remove(filepath)
 
-            print(f"❌ ABSENSI DITOLAK: Lokasi di luar area ({jarak:.0f}m > {radius}m)\n")
+#             print(f"❌ ABSENSI DITOLAK: Lokasi di luar area ({jarak:.0f}m > {radius}m)\n")
 
-            return jsonify({
-                "success": False,
-                "message": (
-                    f"❌ Absensi gagal! Anda berada di luar area absensi.\n\n"
-                    f"📍 Jarak Anda: {jarak:.0f} meter dari sekolah\n"
-                    f"📍 Radius maksimal: {radius} meter\n\n"
-                    f"Silakan dekati area sekolah untuk melakukan absensi."
-                ),
-            })
+#             return jsonify({
+#                 "success": False,
+#                 "message": (
+#                     f"❌ Absensi gagal! Anda berada di luar area absensi.\n\n"
+#                     f"📍 Jarak Anda: {jarak:.0f} meter dari sekolah\n"
+#                     f"📍 Radius maksimal: {radius} meter\n\n"
+#                     f"Silakan dekati area sekolah untuk melakukan absensi."
+#                 ),
+#             })
 
-        print("✅ Status lokasi: DALAM AREA")
+#         print("✅ Status lokasi: DALAM AREA")
 
-        # PENCOCOKAN WAJAH
-        print("\n🔍 Memulai pencocokan wajah...")
-        siswa = cari_siswa_dengan_wajah(filepath)
+#         # PENCOCOKAN WAJAH
+#         print("\n🔍 Memulai pencocokan wajah...")
+#         siswa = cari_siswa_dengan_wajah(filepath)
 
-        # Hapus file temporary
-        if os.path.exists(filepath):
-            os.remove(filepath)
-            print("🗑️ File temporary dihapus")
+#         # Hapus file temporary
+#         if os.path.exists(filepath):
+#             os.remove(filepath)
+#             print("🗑️ File temporary dihapus")
 
-        if not siswa:
-            print("\n❌ ABSENSI GAGAL: Wajah tidak dikenali\n")
-            return jsonify({
-                "success": False,
-                "message": "❌ Wajah tidak dikenali! Pastikan Anda sudah terdaftar dan foto jelas.",
-            })
+#         if not siswa:
+#             print("\n❌ ABSENSI GAGAL: Wajah tidak dikenali\n")
+#             return jsonify({
+#                 "success": False,
+#                 "message": "❌ Wajah tidak dikenali! Pastikan Anda sudah terdaftar dan foto jelas.",
+#             })
 
-        print(f"\n✅ Wajah dikenali: {siswa['nama']}")
-        print(f"📊 Confidence: {1 - siswa['distance']:.2%}")
+#         print(f"\n✅ Wajah dikenali: {siswa['nama']}")
+#         print(f"📊 Confidence: {1 - siswa['distance']:.2%}")
 
-        # Waktu lokal WIB
-        waktu_lokal = datetime.utcnow() + timedelta(hours=7)
-        tanggal_hari_ini = waktu_lokal.date()
-        jam_sekarang = waktu_lokal.time()
+#         # Waktu lokal WIB
+#         waktu_lokal = datetime.utcnow() + timedelta(hours=7)
+#         tanggal_hari_ini = waktu_lokal.date()
+#         jam_sekarang = waktu_lokal.time()
 
-        # ✅ VALIDASI JAM MASUK (06:00 - 07:30 WIB)
-        jam_mulai_masuk = datetime.strptime("06:00", "%H:%M").time()
-        jam_akhir_masuk = datetime.strptime("07:30", "%H:%M").time()
+#         # ✅ VALIDASI JAM MASUK (06:00 - 07:30 WIB)
+#         jam_mulai_masuk = datetime.strptime("06:00", "%H:%M").time()
+#         jam_akhir_masuk = datetime.strptime("07:30", "%H:%M").time()
 
-        if jam_sekarang < jam_mulai_masuk:
-            print("⏰ Belum waktunya absen masuk")
-            return jsonify({
-                "success": False,
-                "message": (
-                    f"⏰ Absen masuk hanya bisa dilakukan mulai jam 06:00 WIB.\n\n"
-                    f"Sekarang jam {waktu_lokal.strftime('%H:%M')} WIB.\n"
-                    f"Silakan kembali saat waktu absensi."
-                ),
-            })
+#         if jam_sekarang < jam_mulai_masuk:
+#             print("⏰ Belum waktunya absen masuk")
+#             return jsonify({
+#                 "success": False,
+#                 "message": (
+#                     f"⏰ Absen masuk hanya bisa dilakukan mulai jam 06:00 WIB.\n\n"
+#                     f"Sekarang jam {waktu_lokal.strftime('%H:%M')} WIB.\n"
+#                     f"Silakan kembali saat waktu absensi."
+#                 ),
+#             })
 
-        # Tentukan status berdasarkan waktu
-        if jam_sekarang > jam_akhir_masuk:
-            status = "TERLAMBAT"
-            print("⏰ Status waktu: TERLAMBAT")
-        else:
-            status = "HADIR"
-            print("⏰ Status waktu: TEPAT WAKTU")
+#         # Tentukan status berdasarkan waktu
+#         if jam_sekarang > jam_akhir_masuk:
+#             status = "TERLAMBAT"
+#             print("⏰ Status waktu: TERLAMBAT")
+#         else:
+#             status = "HADIR"
+#             print("⏰ Status waktu: TEPAT WAKTU")
 
-        conn = sqlite3.connect(DB_NAME)
-        cur = conn.cursor()
+#         conn = sqlite3.connect(DB_NAME)
+#         cur = conn.cursor()
 
-        # Cek apakah sudah absen hari ini
-        cur.execute("""
-            SELECT id FROM absensi
-            WHERE siswa_id = ? AND DATE(waktu) = ?
-        """, (siswa["id"], tanggal_hari_ini))
-        sudah_absen = cur.fetchone()
+#         # Cek apakah sudah absen hari ini
+#         cur.execute("""
+#             SELECT id FROM absensi
+#             WHERE siswa_id = ? AND DATE(waktu) = ?
+#         """, (siswa["id"], tanggal_hari_ini))
+#         sudah_absen = cur.fetchone()
 
-        if sudah_absen:
-            conn.close()
-            print("⚠️ Siswa sudah absen hari ini")
-            return jsonify({
-                "success": False,
-                "message": (
-                    f"⚠️ {siswa['nama']} sudah melakukan absensi masuk hari ini!\n\n"
-                    f"Silakan absen besok atau lakukan absensi pulang saat waktunya."
-                ),
-            })
+#         if sudah_absen:
+#             conn.close()
+#             print("⚠️ Siswa sudah absen hari ini")
+#             return jsonify({
+#                 "success": False,
+#                 "message": (
+#                     f"⚠️ {siswa['nama']} sudah melakukan absensi masuk hari ini!\n\n"
+#                     f"Silakan absen besok atau lakukan absensi pulang saat waktunya."
+#                 ),
+#             })
 
-        # Simpan absensi baru
-        cur.execute("""
-            INSERT INTO absensi (siswa_id, nama, kelas, jurusan, latitude, longitude, status, waktu)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            siswa["id"],
-            siswa["nama"],
-            siswa["kelas"],
-            siswa["jurusan"],
-            lat,
-            lng,
-            status,
-            waktu_lokal,
-        ))
+#         # Simpan absensi baru
+#         cur.execute("""
+#             INSERT INTO absensi (siswa_id, nama, kelas, jurusan, latitude, longitude, status, waktu)
+#             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+#         """, (
+#             siswa["id"],
+#             siswa["nama"],
+#             siswa["kelas"],
+#             siswa["jurusan"],
+#             lat,
+#             lng,
+#             status,
+#             waktu_lokal,
+#         ))
 
-        conn.commit()
-        conn.close()
+#         conn.commit()
+#         conn.close()
 
-        print("\n🎉 ABSENSI BERHASIL DISIMPAN")
-        print(f"{'=' * 50}\n")
+#         print("\n🎉 ABSENSI BERHASIL DISIMPAN")
+#         print(f"{'=' * 50}\n")
 
-        session["siswa_id"] = siswa["id"]
-        session["siswa_nama"] = siswa["nama"]
-        session["siswa_kelas"] = siswa["kelas"]
-        session["siswa_jurusan"] = siswa["jurusan"]
+#         session["siswa_id"] = siswa["id"]
+#         session["siswa_nama"] = siswa["nama"]
+#         session["siswa_kelas"] = siswa["kelas"]
+#         session["siswa_jurusan"] = siswa["jurusan"]
 
-        return jsonify({
-            "success": True,
-            "redirect": url_for("absensi_user"),
-            "nama": siswa["nama"],
-            "kelas": siswa["kelas"],
-            "jurusan": siswa["jurusan"],
-            "status": status,
-        })
+#         return jsonify({
+#             "success": True,
+#             "redirect": url_for("absensi_user"),
+#             "nama": siswa["nama"],
+#             "kelas": siswa["kelas"],
+#             "jurusan": siswa["jurusan"],
+#             "status": status,
+#         })
 
-    except Exception as e:
-        # Hapus file jika ada error
-        if "filepath" in locals() and os.path.exists(filepath):
-            os.remove(filepath)
+#     except Exception as e:
+#         # Hapus file jika ada error
+#         if "filepath" in locals() and os.path.exists(filepath):
+#             os.remove(filepath)
 
-        print(f"\n❌ ERROR: {e}")
-        import traceback
-        traceback.print_exc()
+#         print(f"\n❌ ERROR: {e}")
+#         import traceback
+#         traceback.print_exc()
 
-        return jsonify({
-            "success": False,
-            "message": f"❌ Terjadi kesalahan sistem: {str(e)}",
-    })
+#         return jsonify({
+#             "success": False,
+#             "message": f"❌ Terjadi kesalahan sistem: {str(e)}",
+#     })
     
 @app.route("/absen_harian", methods=["GET", "POST"])
 def absen_harian():
@@ -1366,7 +1719,7 @@ def absensi_user():
     absensi = cur.fetchall()
     conn.close()
 
-    return render_template("user/absensi.html", absensi=absensi)\
+    return render_template("user/absensi.html", absensi=absensi)
     
 @app.route('/user/bukti_surat/<filename>')
 def serve_bukti_surat_user(filename):
@@ -1843,201 +2196,358 @@ def serve_bukti_surat_user(filename):
 
 #         return jsonify({"success": False, "message": f"❌ Terjadi kesalahan: {str(e)}"})
 
-# ini clean code saat nanti di deploy
 @app.route("/absen_pulang", methods=["POST"])
 def absen_pulang():
-    """Proses absensi pulang dengan validasi ketat + upload bukti surat (PRODUCTION READY)"""
+    """Proses absensi pulang (anti dobel + izin pulang cepat + auto radius fix + mode test)"""
     try:
+        # ======================
+        # ⚙️ MODE TEST (ubah ke False jika real)
+        # ======================
+        TEST_MODE = False
+
+        # === Ambil data dari form ===
         file = request.files["foto"]
         lat = float(request.form["lat"])
         lng = float(request.form["lng"])
         alasan_pulang = request.form.get("alasan", "").strip()
-        
-        # ============= BARU: Upload bukti surat jika pulang cepat =============
         bukti_surat = request.files.get("bukti_surat")
-        bukti_surat_path = None
 
+        bukti_surat_path = None
         filename = f"pulang_{uuid.uuid4().hex}.jpg"
         filepath = os.path.join(UPLOAD_DIR, filename)
         file.save(filepath)
 
-        print(f"\n{'='*50}")
-        print("🏃 PROSES ABSENSI PULANG DIMULAI")
-        print(f"📍 File: {filename}")
+        print(f"\n{'='*60}")
+        print("📸 PROSES ABSENSI PULANG DIMULAI")
+        print(f"📁 File: {filename}")
         print(f"📍 Lokasi: {lat}, {lng}")
-        print(f"{'='*50}\n")
+        print(f"{'='*60}\n")
 
-        # Ambil area sekolah
+        # === Ambil area absensi ===
         conn = sqlite3.connect(DB_NAME)
         cur = conn.cursor()
         cur.execute("SELECT latitude, longitude, radius FROM settings WHERE id=1")
         row = cur.fetchone()
-        conn.close()
-
         school_lat, school_lng, radius = row
+
         jarak = hitung_jarak(lat, lng, school_lat, school_lng)
+        print(f"📏 Jarak dari sekolah: {jarak:.2f} meter (radius {radius}m)")
 
-        print(f"📏 Jarak dari sekolah: {jarak:.2f} meter")
-        print(f"📏 Radius yang diizinkan: {radius} meter")
-
-        # ============= STRICT VALIDATION: BLOCK JIKA DILUAR AREA =============
+        # === Validasi lokasi ===
         if jarak > radius:
-            if os.path.exists(filepath):
+            if TEST_MODE:
+                print("⚙️ TEST MODE AKTIF — lokasi dikoreksi ke titik sekolah.")
+                lat, lng = school_lat, school_lng
+            else:
                 os.remove(filepath)
-            print(f"❌ ABSENSI PULANG DITOLAK: Di luar area ({jarak:.0f}m > {radius}m)\n")
-            return jsonify({
-                "success": False,
-                "message": f"❌ Anda berada di luar area absensi (jarak {jarak:.1f}m dari sekolah)."
-            })
+                conn.close()
+                return jsonify({
+                    "success": False,
+                    "message": f"❌ Anda berada di luar area absensi ({jarak:.1f}m > {radius}m)."
+                })
 
-        print("✅ Status lokasi: DALAM AREA")
-
-        # Pencocokan wajah
+        # === Cek wajah ===
         siswa = cari_siswa_dengan_wajah(filepath)
-        if os.path.exists(filepath): 
-            os.remove(filepath)
+        os.remove(filepath)
 
         if not siswa:
+            conn.close()
             return jsonify({"success": False, "message": "❌ Wajah tidak dikenali."})
 
         print(f"✅ Wajah dikenali: {siswa['nama']}")
 
-        # Waktu lokal WIB
+        # === Waktu lokal ===
         waktu_lokal = datetime.utcnow() + timedelta(hours=7)
-        # bahan testing waktu ke jam normal yang harusnya absen
-        # print("🕒 Waktu lokal (WIB):", waktu_lokal.strftime("%H:%M:%S"))
-        # waktu_lokal = waktu_lokal.replace(hour=15, minute=30, second=0)
         tanggal_hari_ini = waktu_lokal.date()
         jam_sekarang = waktu_lokal.time()
 
-        # ============= VALIDASI JAM PULANG (15:00 - 16:00) =============
-        jam_mulai_pulang = datetime.strptime("15:00", "%H:%M").time()
-        jam_akhir_pulang = datetime.strptime("16:00", "%H:%M").time()
+        # === Cek apakah sudah absen pulang hari ini ===
+        cur.execute("""
+            SELECT waktu_pulang FROM absensi 
+            WHERE siswa_id = ? AND DATE(waktu) = ?
+        """, (siswa["id"], tanggal_hari_ini))
+        existing = cur.fetchone()
 
-        memerlukan_alasan = False
-        
-        # ❌ TOLAK jika SETELAH jam 16:00 (4 sore)
-        if jam_sekarang > jam_akhir_pulang:
-            print(f"⏰ DITOLAK: Absen pulang sudah lewat jam 16:00 WIB")
+        if existing and existing[0] is not None:
+            conn.close()
             return jsonify({
                 "success": False,
-                "message": f"❌ Waktu absen pulang sudah lewat!\n\n"
-                          f"⏰ Absen pulang hanya bisa dilakukan antara jam 15:00 - 16:00 WIB.\n"
-                          f"Sekarang jam {waktu_lokal.strftime('%H:%M')} WIB.\n\n"
-                          f"Silakan hubungi guru/admin jika ada masalah."
+                "message": "⚠️ Anda sudah melakukan absensi pulang hari ini."
             })
-        
-        # 📋 PULANG CEPAT (sebelum jam 15:00) - WAJIB ALASAN + BUKTI SURAT
-        elif jam_sekarang < jam_mulai_pulang:
+
+        # === Batas jam aturan ===
+        jam_pulang_mulai = datetime.strptime("15:00", "%H:%M").time()
+        jam_pulang_akhir = datetime.strptime("16:00", "%H:%M").time()
+
+        # === Tentukan status absensi pulang ===
+        if jam_sekarang < jam_pulang_mulai:
             status_pulang = "PULANG CEPAT"
-            memerlukan_alasan = True
-            print(f"⚠️ Status: PULANG CEPAT (sebelum jam 15:00)")
-            
-            # ❌ Validasi alasan wajib diisi
+
+            # Wajib isi alasan & upload surat
             if not alasan_pulang or len(alasan_pulang) < 5:
+                conn.close()
                 return jsonify({
                     "success": False,
                     "message": "📝 Alasan pulang cepat wajib diisi (minimal 5 karakter)."
                 })
-            
-            # ============= VALIDASI BUKTI SURAT (WAJIB UNTUK PULANG CEPAT) =============
-            if not bukti_surat or bukti_surat.filename == '':
+            if not bukti_surat or bukti_surat.filename == "":
+                conn.close()
                 return jsonify({
                     "success": False,
-                    "message": "📄 Bukti surat izin wajib diupload untuk pulang cepat!\n\n"
-                              "Silakan upload foto surat izin dari orang tua/wali atau surat keterangan resmi."
+                    "message": "📄 Bukti surat izin wajib diupload untuk pulang cepat!"
                 })
-            
-            # Validasi file bukti surat
-            is_valid, error_msg = validate_upload_file(bukti_surat)
-            if not is_valid:
-                return jsonify({"success": False, "message": f"❌ {error_msg}"})
-            
-            # Simpan bukti surat
+
             os.makedirs("bukti_surat", exist_ok=True)
             bukti_filename = f"bukti_{siswa['id']}_{uuid.uuid4().hex}.jpg"
             bukti_surat_path = os.path.join("bukti_surat", bukti_filename)
             bukti_surat.save(bukti_surat_path)
             print(f"✅ Bukti surat disimpan: {bukti_filename}")
-        
-        # ✅ PULANG TEPAT WAKTU (15:00 - 16:00)
-        else:
+
+        elif jam_pulang_mulai <= jam_sekarang <= jam_pulang_akhir:
             status_pulang = "PULANG TEPAT WAKTU"
-            memerlukan_alasan = False
-            print(f"✅ Status: PULANG TEPAT WAKTU")
+        else:
+            status_pulang = "PULANG TERLAMBAT"
 
-        # Cek absensi hari ini
-        conn = sqlite3.connect(DB_NAME)
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT id, waktu_pulang FROM absensi
-            WHERE siswa_id = ? AND DATE(waktu) = ?
-        """, (siswa["id"], tanggal_hari_ini))
-        absen_hari_ini = cur.fetchone()
+        print(f"💬 Status pulang: {status_pulang}")
 
-        if not absen_hari_ini:
-            conn.close()
-            return jsonify({
-                "success": False,
-                "message": f"❌ {siswa['nama']} belum melakukan absensi masuk hari ini!\n\n"
-                          f"Silakan lakukan absensi masuk terlebih dahulu."
-            })
-
-        if absen_hari_ini[1] is not None:
-            conn.close()
-            # Hapus bukti surat jika ada
-            if bukti_surat_path and os.path.exists(bukti_surat_path):
-                os.remove(bukti_surat_path)
-            return jsonify({
-                "success": False,
-                "message": f"⚠️ {siswa['nama']} sudah melakukan absensi pulang hari ini!"
-            })
-
-        # ============= SIMPAN ABSENSI PULANG =============
+        # === Update database ===
         cur.execute("""
             UPDATE absensi 
-            SET waktu_pulang = ?, status_pulang = ?, latitude_pulang = ?, longitude_pulang = ?, 
-                alasan_pulang = ?, bukti_surat = ?
-            WHERE id = ?
+            SET waktu_pulang = ?, status_pulang = ?, latitude_pulang = ?, 
+                longitude_pulang = ?, alasan_pulang = ?, bukti_surat = ?
+            WHERE siswa_id = ? AND DATE(waktu) = ?
         """, (
-            waktu_lokal, 
-            status_pulang, 
-            lat, 
-            lng, 
-            alasan_pulang if memerlukan_alasan else None,
+            waktu_lokal, status_pulang, lat, lng,
+            alasan_pulang or None,
             os.path.basename(bukti_surat_path) if bukti_surat_path else None,
-            absen_hari_ini[0]
+            siswa["id"], tanggal_hari_ini
         ))
-
         conn.commit()
         conn.close()
 
-        print(f"\n🎉 ABSENSI PULANG BERHASIL: {status_pulang}")
-        print(f"{'='*50}\n")
+        print(f"\n🎉 ABSENSI PULANG BERHASIL ({status_pulang})")
+        print(f"{'='*60}\n")
 
+        # === Redirect ke tabel absensi ===
         return jsonify({
             "success": True,
             "redirect": url_for("absensi_user"),
+            "message": f"✅ Absen pulang berhasil ({status_pulang})",
             "nama": siswa["nama"],
             "kelas": siswa["kelas"],
             "jurusan": siswa["jurusan"],
             "status": status_pulang,
             "waktu": waktu_lokal.strftime("%H:%M:%S"),
-            "alasan": alasan_pulang if memerlukan_alasan else ""
+            "alasan": alasan_pulang or "",
+            "bukti_surat": os.path.basename(bukti_surat_path) if bukti_surat_path else ""
         })
 
     except Exception as e:
-        # Cleanup jika error
         if 'filepath' in locals() and os.path.exists(filepath):
             os.remove(filepath)
         if 'bukti_surat_path' in locals() and bukti_surat_path and os.path.exists(bukti_surat_path):
             os.remove(bukti_surat_path)
-        
+
         print(f"\n❌ ERROR: {e}")
-        import traceback
-        traceback.print_exc()
-        
+        import traceback; traceback.print_exc()
         return jsonify({"success": False, "message": f"❌ Terjadi kesalahan: {str(e)}"})
+
+
+# ini clean code saat nanti di deploy
+# @app.route("/absen_pulang", methods=["POST"])
+# def absen_pulang():
+#     """Proses absensi pulang dengan validasi ketat + upload bukti surat (PRODUCTION READY)"""
+#     try:
+#         file = request.files["foto"]
+#         lat = float(request.form["lat"])
+#         lng = float(request.form["lng"])
+#         alasan_pulang = request.form.get("alasan", "").strip()
+        
+#         # ============= BARU: Upload bukti surat jika pulang cepat =============
+#         bukti_surat = request.files.get("bukti_surat")
+#         bukti_surat_path = None
+
+#         filename = f"pulang_{uuid.uuid4().hex}.jpg"
+#         filepath = os.path.join(UPLOAD_DIR, filename)
+#         file.save(filepath)
+
+#         print(f"\n{'='*50}")
+#         print("🏃 PROSES ABSENSI PULANG DIMULAI")
+#         print(f"📍 File: {filename}")
+#         print(f"📍 Lokasi: {lat}, {lng}")
+#         print(f"{'='*50}\n")
+
+#         # Ambil area sekolah
+#         conn = sqlite3.connect(DB_NAME)
+#         cur = conn.cursor()
+#         cur.execute("SELECT latitude, longitude, radius FROM settings WHERE id=1")
+#         row = cur.fetchone()
+#         conn.close()
+
+#         school_lat, school_lng, radius = row
+#         jarak = hitung_jarak(lat, lng, school_lat, school_lng)
+
+#         print(f"📏 Jarak dari sekolah: {jarak:.2f} meter")
+#         print(f"📏 Radius yang diizinkan: {radius} meter")
+
+#         # ============= STRICT VALIDATION: BLOCK JIKA DILUAR AREA =============
+#         if jarak > radius:
+#             if os.path.exists(filepath):
+#                 os.remove(filepath)
+#             print(f"❌ ABSENSI PULANG DITOLAK: Di luar area ({jarak:.0f}m > {radius}m)\n")
+#             return jsonify({
+#                 "success": False,
+#                 "message": f"❌ Anda berada di luar area absensi (jarak {jarak:.1f}m dari sekolah)."
+#             })
+
+#         print("✅ Status lokasi: DALAM AREA")
+
+#         # Pencocokan wajah
+#         siswa = cari_siswa_dengan_wajah(filepath)
+#         if os.path.exists(filepath): 
+#             os.remove(filepath)
+
+#         if not siswa:
+#             return jsonify({"success": False, "message": "❌ Wajah tidak dikenali."})
+
+#         print(f"✅ Wajah dikenali: {siswa['nama']}")
+
+#         # Waktu lokal WIB
+#         waktu_lokal = datetime.utcnow() + timedelta(hours=7)
+#         # bahan testing waktu ke jam normal yang harusnya absen
+#         # print("🕒 Waktu lokal (WIB):", waktu_lokal.strftime("%H:%M:%S"))
+#         # waktu_lokal = waktu_lokal.replace(hour=15, minute=30, second=0)
+#         tanggal_hari_ini = waktu_lokal.date()
+#         jam_sekarang = waktu_lokal.time()
+
+#         # ============= VALIDASI JAM PULANG (15:00 - 16:00) =============
+#         jam_mulai_pulang = datetime.strptime("15:00", "%H:%M").time()
+#         jam_akhir_pulang = datetime.strptime("16:00", "%H:%M").time()
+
+#         memerlukan_alasan = False
+        
+#         # ❌ TOLAK jika SETELAH jam 16:00 (4 sore)
+#         if jam_sekarang > jam_akhir_pulang:
+#             print(f"⏰ DITOLAK: Absen pulang sudah lewat jam 16:00 WIB")
+#             return jsonify({
+#                 "success": False,
+#                 "message": f"❌ Waktu absen pulang sudah lewat!\n\n"
+#                           f"⏰ Absen pulang hanya bisa dilakukan antara jam 15:00 - 16:00 WIB.\n"
+#                           f"Sekarang jam {waktu_lokal.strftime('%H:%M')} WIB.\n\n"
+#                           f"Silakan hubungi guru/admin jika ada masalah."
+#             })
+        
+#         # 📋 PULANG CEPAT (sebelum jam 15:00) - WAJIB ALASAN + BUKTI SURAT
+#         elif jam_sekarang < jam_mulai_pulang:
+#             status_pulang = "PULANG CEPAT"
+#             memerlukan_alasan = True
+#             print(f"⚠️ Status: PULANG CEPAT (sebelum jam 15:00)")
+            
+#             # ❌ Validasi alasan wajib diisi
+#             if not alasan_pulang or len(alasan_pulang) < 5:
+#                 return jsonify({
+#                     "success": False,
+#                     "message": "📝 Alasan pulang cepat wajib diisi (minimal 5 karakter)."
+#                 })
+            
+#             # ============= VALIDASI BUKTI SURAT (WAJIB UNTUK PULANG CEPAT) =============
+#             if not bukti_surat or bukti_surat.filename == '':
+#                 return jsonify({
+#                     "success": False,
+#                     "message": "📄 Bukti surat izin wajib diupload untuk pulang cepat!\n\n"
+#                               "Silakan upload foto surat izin dari orang tua/wali atau surat keterangan resmi."
+#                 })
+            
+#             # Validasi file bukti surat
+#             is_valid, error_msg = validate_upload_file(bukti_surat)
+#             if not is_valid:
+#                 return jsonify({"success": False, "message": f"❌ {error_msg}"})
+            
+#             # Simpan bukti surat
+#             os.makedirs("bukti_surat", exist_ok=True)
+#             bukti_filename = f"bukti_{siswa['id']}_{uuid.uuid4().hex}.jpg"
+#             bukti_surat_path = os.path.join("bukti_surat", bukti_filename)
+#             bukti_surat.save(bukti_surat_path)
+#             print(f"✅ Bukti surat disimpan: {bukti_filename}")
+        
+#         # ✅ PULANG TEPAT WAKTU (15:00 - 16:00)
+#         else:
+#             status_pulang = "PULANG TEPAT WAKTU"
+#             memerlukan_alasan = False
+#             print(f"✅ Status: PULANG TEPAT WAKTU")
+
+#         # Cek absensi hari ini
+#         conn = sqlite3.connect(DB_NAME)
+#         cur = conn.cursor()
+#         cur.execute("""
+#             SELECT id, waktu_pulang FROM absensi
+#             WHERE siswa_id = ? AND DATE(waktu) = ?
+#         """, (siswa["id"], tanggal_hari_ini))
+#         absen_hari_ini = cur.fetchone()
+
+#         if not absen_hari_ini:
+#             conn.close()
+#             return jsonify({
+#                 "success": False,
+#                 "message": f"❌ {siswa['nama']} belum melakukan absensi masuk hari ini!\n\n"
+#                           f"Silakan lakukan absensi masuk terlebih dahulu."
+#             })
+
+#         if absen_hari_ini[1] is not None:
+#             conn.close()
+#             # Hapus bukti surat jika ada
+#             if bukti_surat_path and os.path.exists(bukti_surat_path):
+#                 os.remove(bukti_surat_path)
+#             return jsonify({
+#                 "success": False,
+#                 "message": f"⚠️ {siswa['nama']} sudah melakukan absensi pulang hari ini!"
+#             })
+
+#         # ============= SIMPAN ABSENSI PULANG =============
+#         cur.execute("""
+#             UPDATE absensi 
+#             SET waktu_pulang = ?, status_pulang = ?, latitude_pulang = ?, longitude_pulang = ?, 
+#                 alasan_pulang = ?, bukti_surat = ?
+#             WHERE id = ?
+#         """, (
+#             waktu_lokal, 
+#             status_pulang, 
+#             lat, 
+#             lng, 
+#             alasan_pulang if memerlukan_alasan else None,
+#             os.path.basename(bukti_surat_path) if bukti_surat_path else None,
+#             absen_hari_ini[0]
+#         ))
+
+#         conn.commit()
+#         conn.close()
+
+#         print(f"\n🎉 ABSENSI PULANG BERHASIL: {status_pulang}")
+#         print(f"{'='*50}\n")
+
+#         return jsonify({
+#             "success": True,
+#             "redirect": url_for("absensi_user"),
+#             "nama": siswa["nama"],
+#             "kelas": siswa["kelas"],
+#             "jurusan": siswa["jurusan"],
+#             "status": status_pulang,
+#             "waktu": waktu_lokal.strftime("%H:%M:%S"),
+#             "alasan": alasan_pulang if memerlukan_alasan else ""
+#         })
+
+#     except Exception as e:
+#         # Cleanup jika error
+#         if 'filepath' in locals() and os.path.exists(filepath):
+#             os.remove(filepath)
+#         if 'bukti_surat_path' in locals() and bukti_surat_path and os.path.exists(bukti_surat_path):
+#             os.remove(bukti_surat_path)
+        
+#         print(f"\n❌ ERROR: {e}")
+#         import traceback
+#         traceback.print_exc()
+        
+#         return jsonify({"success": False, "message": f"❌ Terjadi kesalahan: {str(e)}"})
     
 @app.route("/absen_pulang_harian", methods=["GET"])
 def absen_pulang_harian():
@@ -2925,6 +3435,9 @@ def handle_exception(e):
 # ---------------- Main ----------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    debug_mode = os.environ.get('DEBUG', 'False').lower() == 'true'
-    # app.run(host="0.0.0.0", port=port, debug=debug_mode)
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=port, debug=False)
+# if __name__ == "__main__":
+#     port = int(os.environ.get("PORT", 5000))
+#     debug_mode = os.environ.get('DEBUG', 'False').lower() == 'true'
+#     # app.run(host="0.0.0.0", port=port, debug=debug_mode)
+#     app.run(debug=True)
