@@ -2258,6 +2258,7 @@ def absen_pulang():
 
         # === Waktu lokal ===
         waktu_lokal = datetime.utcnow() + timedelta(hours=7)
+        # waktu_lokal = waktu_lokal.replace(hour=15, minute=30, second=0)  # simulasi jam 15:30 (test)
         tanggal_hari_ini = waktu_lokal.date()
         jam_sekarang = waktu_lokal.time()
 
