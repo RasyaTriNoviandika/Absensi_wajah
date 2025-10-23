@@ -208,44 +208,52 @@
     }
 
     // ============= CEK JAM & TAMPILKAN ALASAN + BUKTI SURAT ============= 
-    function cekJam() {
-      const now = new Date();
-      // now.setHours(15);
-      // now.setMinutes(30);
-      const jam = now.getHours();
-      const menit = now.getMinutes();
-      const totalMenit = jam * 60 + menit;
-      const mulaiPulang = 15 * 60; // jam 15:00
-      const akhirPulang = 16 * 60; // jam 16:00
+  function cekJam() {
+  const now = new Date();
+  // now.setHours(12);
+  // now.setMinutes(50);
+  const jam = now.getHours();
+  const menit = now.getMinutes();
+  const totalMenit = jam * 60 + menit;
+  const mulaiPulang = 15 * 60; // jam 15:00
+  const akhirPulang = 16 * 60; // jam 16:00
 
-      const alasanSection = document.getElementById("alasanSection");
-      const buktiSuratSection = document.getElementById("buktiSuratSection");
+  const alasanSection = document.getElementById("alasanSection");
+  const buktiSuratSection = document.getElementById("buktiSuratSection");
 
-      // Jika SEBELUM jam 15:00 - tampilkan alasan + bukti surat
-      if (totalMenit < mulaiPulang) {
-        alasanSection.style.display = "block";
-        buktiSuratSection.classList.add("show");
-      } 
-      // Jika antara 15:00 - 16:00 - sembunyikan alasan + bukti
-      else if (totalMenit >= mulaiPulang && totalMenit <= akhirPulang) {
-        alasanSection.style.display = "none";
-        buktiSuratSection.classList.remove("show");
-        document.getElementById("alasanInput").value = "";
-      }
-      // Jika SETELAH jam 16:00 - disable tombol
-      else {
-        captureBtn.disabled = true;
-        captureBtn.textContent = "❌ Waktu Absen Pulang Sudah Lewat";
-        Swal.fire({
-          icon: 'warning',
-          title: '⏰ Waktu Absen Sudah Lewat',
-          html: 'Absen pulang hanya bisa dilakukan antara jam 15:00 - 16:00 WIB.<br><br>Silakan hubungi guru/admin jika ada masalah.',
-          confirmButtonColor: '#dc3545'
-        });
-      }
+  if (totalMenit < mulaiPulang) {
+    // Sebelum jam 15:00 → wajib alasan + bukti
+    alasanSection.style.display = "block";
+    buktiSuratSection.classList.add("show");
+  } 
+  else if (totalMenit >= mulaiPulang && totalMenit <= akhirPulang) {
+    // Di antara 15:00–16:00 → normal
+    alasanSection.style.display = "none";
+    buktiSuratSection.classList.remove("show");
+    document.getElementById("alasanInput").value = "";
+  } 
+  else {
+    // ❌ Setelah jam 16:00 → tampilkan peringatan dan nonaktifkan tombol
+    captureBtn.disabled = true;
+    captureBtn.textContent = "❌ Absen Pulang Tidak Tersedia";
 
-      console.log("🕒 Jam sekarang:", jam + ":" + menit, "| Tampil alasan+bukti?", totalMenit < mulaiPulang);
-    }
+    Swal.fire({
+      icon: "error",
+      title: "⏰ Waktu Absen Pulang Sudah Lewat!",
+      html: `
+        <p>Absen pulang hanya dapat dilakukan Jam <b>15:00 – 16:00 WIB</b>.</p>
+      `,
+      confirmButtonText: "Mengerti",
+      confirmButtonColor: "#d33",
+      allowOutsideClick: false
+    }).then(() => {
+      // ⏪ Setelah klik OK, redirect balik ke beranda
+      window.location.href = "/";
+    });
+  }
+
+  console.log(`🕒 Sekarang jam ${jam}:${menit} → Tombol aktif?`, !(totalMenit > akhirPulang));
+}
 
     window.addEventListener("load", cekJam);
 
