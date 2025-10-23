@@ -283,6 +283,25 @@
       border-radius: 12px;
       box-shadow: 0 0 30px rgba(255,255,255,0.2);
     }
+    /* Popup sukses */
+    .popup-success {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #28a745;
+      color: white;
+      padding: 14px 20px;
+      border-radius: 8px;
+      font-weight: 600;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+      z-index: 9999;
+      animation: fadeIn 0.3s ease;
+      transition: opacity 0.5s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
     .close {
       position: absolute;
       top: 20px;
@@ -514,63 +533,75 @@
         </div>
       </div>
     {% endif %}
-  </div>
+    </div>
 
-  <!-- Popup -->
   <div id="popup" class="popup" onclick="tutupPopup(event)">
-    <span class="close" onclick="tutupPopup(event)">×</span>
-    <img id="popupImg" src="" alt="Foto Siswa">
-  </div>
+  <span class="close" onclick="tutupPopup(event)">×</span>
+  <img id="popupImg" src="" alt="Foto Siswa">
+</div>
 
-  <script>
-    function bukaPopup(src) {
-      document.getElementById("popupImg").src = src;
-      document.getElementById("popup").style.display = "flex";
-      document.body.style.overflow = "hidden";
-    }
-    
-    function tutupPopup(event) {
-      if (event && event.target.classList.contains('popup')) {
-        event.stopPropagation();
-      }
-      document.getElementById("popup").style.display = "none";
-      document.body.style.overflow = "auto";
-    }
-    
-    document.addEventListener('keydown', function(event) {
-      if (event.key === 'Escape') {
-        tutupPopup();
-      }
-    });
+<!-- Script utama -->
+<script>
+  // Popup foto
+  function bukaPopup(src) {
+    const popupImg = document.getElementById("popupImg");
+    const popup = document.getElementById("popup");
+    popupImg.src = src;
+    popup.style.display = "flex";
+    document.body.style.overflow = "hidden";
+  }
 
-    function resetFilter() {
-      window.location.href = "{{ url_for('admin_kelola_siswa') }}";
-    }
+  function tutupPopup() {
+    document.getElementById("popup").style.display = "none";
+    document.body.style.overflow = "auto";
+  }
 
-     const searchInput = document.getElementById("searchNama");
-    const form = document.getElementById("filterForm");
+  document.addEventListener("keydown", function(event) {
+    if (event.key === "Escape") tutupPopup();
+  });
+
+  // Reset filter
+  function resetFilter() {
+    window.location.href = "{{ url_for('admin_kelola_siswa') }}";
+  }
+
+  // Auto-search
+  const searchInput = document.getElementById("searchNama");
+  const form = document.getElementById("filterForm");
+  if (searchInput && form) {
     let typingTimer;
-    const typingDelay = 400; // waktu delay sebelum auto-search (ms)
+    const typingDelay = 400; // ms
 
     searchInput.addEventListener("keyup", function() {
       clearTimeout(typingTimer);
-      typingTimer = setTimeout(() => {
-        form.submit(); // otomatis kirim form setelah berhenti mengetik
-      }, typingDelay);
+      typingTimer = setTimeout(() => form.submit(), typingDelay);
     });
 
     searchInput.addEventListener("keydown", function() {
-      clearTimeout(typingTimer); // reset saat masih mengetik
+      clearTimeout(typingTimer);
     });
+  }
+</script>
 
-    // Auto-submit on dropdown change (optional - comment out if not needed)
-    // document.getElementById('filterKelas').addEventListener('change', function() {
-    //   document.getElementById('filterForm').submit();
-    // });
-    // document.getElementById('filterJurusan').addEventListener('change', function() {
-    //   document.getElementById('filterForm').submit();
-    // });
-  </script>
-
+<!-- Popup sukses (Flash Message) -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div id="popupSuccess" class="popup-success">
+      {% for category, message in messages %}
+        {{ message }}
+      {% endfor %}
+    </div>
+    <script>
+      const popup = document.getElementById("popupSuccess");
+      if (popup) {
+        popup.style.display = "block";
+        setTimeout(() => {
+          popup.style.opacity = "0";
+          setTimeout(() => popup.remove(), 500);
+        }, 2500);
+      }
+    </script>
+  {% endif %}
+{% endwith %}
 </body>
 </html>
