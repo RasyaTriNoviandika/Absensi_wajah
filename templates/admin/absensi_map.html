@@ -557,9 +557,12 @@
           <td>{{ a[4] }}</td>
           <td>
             {% if a[5] and a[6] %}
-              <a class="button" href="#" onclick="focusMarker({{ loop.index0 }}); return false;">Lihat Masuk</a>
+            <a class="button" href="#" 
+            onclick="focusMarkerLatLng({{ a[5] }}, {{ a[6] }}, '{{ a[0] }}', '{{ a[1] }} - {{ a[2] }}', '{{ a[3] }}', 'MASUK'); return false;">
+            Lihat Masuk
+            </a>
             {% else %}
-              -
+            -
             {% endif %}
           </td>
           <td>
@@ -582,8 +585,11 @@
           </td>
           <td>
             {% if a[9] and a[10] %}
-              <a class="button" href="#" onclick="focusMarkerPulang({{ loop.index0 }}); return false;">Lihat Pulang</a>
-            {% else %}
+            <a class="button" href="#"
+            onclick="focusMarkerLatLng({{ a[9] }}, {{ a[10] }}, '{{ a[0] }}', '{{ a[1] }} - {{ a[2] }}', '{{ a[7] }}', 'PULANG'); return false;">
+            Lihat Pulang
+          </a>
+          {% else %}
               -
             {% endif %}
           </td>
@@ -833,6 +839,31 @@ document.getElementById('buktiModalImg')?.addEventListener('click', function(e) 
       }
     }
     
+   function focusMarkerLatLng(lat, lng, nama, kelas, waktu, status = '', tipe = 'MASUK') {
+    if (lat && lng) {
+    // 🔽 Scroll otomatis ke bagian peta
+    const mapElement = document.getElementById('map');
+    mapElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    setTimeout(() => {
+      const popupContent = `
+        <b>${nama}</b><br>
+        ${kelas}<br>
+        <strong>${tipe}:</strong> ${status}<br>
+        <strong>Waktu:</strong> ${waktu}
+      `;
+      const tempMarker = L.marker([lat, lng]).bindPopup(popupContent).addTo(map);
+      map.setView([lat, lng], 17);
+      tempMarker.openPopup();
+
+      // Hapus marker sementara setelah 5 detik
+      setTimeout(() => map.removeLayer(tempMarker), 5000);
+        }, 600);
+      } else {
+        alert('Lokasi tidak ditemukan.');
+      }
+    }
+
     function focusMarkerPulang(index){
       var marker = markersPulang[index];
       if(marker){
